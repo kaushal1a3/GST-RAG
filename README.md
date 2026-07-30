@@ -22,23 +22,19 @@ legislation (Acts + Rules) with precise legal citations.
 
 ```
 gst-rag/
-├── data/
-│   ├── raw/                # place source JSON files here (not in version control)
-│   └── processed/          # auto-generated indexes and chunk files
-├── ingestion/
-│   ├── loader.py           # load & validate raw JSON
-│   ├── normalizer.py       # unified schema across acts/rules
-│   ├── chunker.py          # leaf + parent chunk construction
-│   ├── embedder.py         # sentence-transformer embeddings w/ caching
-│   ├── build_index.py      # full pipeline orchestrator
-│   └── verify.py           # Phase 1 self-check
-├── retrieval/              # (Phase 2)
-├── generation/             # (Phase 3)
-├── api/                    # (Phase 4)
-├── frontend/               # (Phase 5)
-├── eval/                   # (Phase 6)
-├── config.py               # all settings in one place
-├── requirements.txt
+├── backend/
+│   ├── api/                # FastAPI web service & Vercel serverless handlers
+│   ├── config.py           # Central system configuration
+│   ├── data/
+│   │   ├── raw/            # Source law PDF/JSON files
+│   │   └── processed/      # Indexes, embeddings, and chunk metadata
+│   ├── eval/               # Evaluation runner & benchmark queries
+│   ├── generation/         # LLM answer generation & LangChain agent
+│   ├── ingestion/          # PDF extraction, chunking, & vector indexing
+│   ├── requirements.txt    # Python backend dependencies
+│   └── retrieval/          # Hybrid RRF, query router, & reranker
+├── frontend/               # React + Vite web user interface
+├── vercel.json             # Vercel deployment configuration
 └── README.md
 ```
 
