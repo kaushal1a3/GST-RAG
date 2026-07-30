@@ -31,7 +31,7 @@
     },
     {
       "src": "/api/(.*)",
-      "dest": "backend/api/index.py"
+      "dest": "backend/api/main.py"
     },
     {
       "src": "/assets/(.*)",
