@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GST RAG — Intelligent Tax Knowledge Base</title>
+
+  <!-- Google Fonts: Cabinet Grotesk, Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', '-apple-system', 'sans-serif'],
+            display: ['Cabinet Grotesk', 'Plus Jakarta Sans', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              orange: '#EA580C',
+              light: '#FFFBF5',
+              border: 'rgba(234, 88, 12, 0.15)',
+              surface: 'rgba(255, 255, 255, 0.8)',
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="h-full bg-[#FFFBF5] text-[#1C1917] font-sans antialiased overflow-x-hidden selection:bg-orange-500 selection:text-white">
+  <div id="root" class="min-h-full"></div>
+
+  <!-- Vite React Module Entry -->
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
+</html>

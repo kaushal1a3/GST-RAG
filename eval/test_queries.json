@@ -1,0 +1,182 @@
+[
+  {
+    "id": "q01",
+    "category": "exact_section",
+    "query": "What does Section 16 of CGST Act say about ITC eligibility?",
+    "expected_law": "Central Goods and Services Tax Act, 2017",
+    "expected_unit": "16",
+    "expected_marker": null,
+    "should_find": true
+  },
+  {
+    "id": "q02",
+    "category": "exact_section",
+    "query": "What are the blocked credits under Section 17(5) of CGST Act?",
+    "expected_law": "Central Goods and Services Tax Act, 2017",
+    "expected_unit": "17",
+    "expected_marker": "(5)",
+    "should_find": true
+  },
+  {
+    "id": "q03",
+    "category": "exact_section",
+    "query": "What persons are compulsory required to register under Section 24 of CGST Act?",
+    "expected_law": "Central Goods and Services Tax Act, 2017",
+    "expected_unit": "24",
+    "expected_marker": null,
+    "should_find": true
+  },
+  {
+    "id": "q04",
+    "category": "exact_section",
+    "query": "What is the procedure for refund of tax under Section 54 of CGST Act?",
+    "expected_law": "Central Goods and Services Tax Act, 2017",
+    "expected_unit": "54",
+    "expected_marker": null,
+    "should_find": true
+  },
+  {
+    "id": "q05",
+    "category": "exact_section",
+    "query": "What powers of inspection, search and seizure are provided under Section 67?",
+    "expected_law": "Central Goods and Services Tax Act, 2017",
+    "expected_unit": "67",
+    "expected_marker": null,
+    "should_find": true
+  },
+  {
+    "id": "q06",
+    "category": "exact_rule",
+    "query": "What is Rule 86A and when can credit in electronic credit ledger be blocked?",
+    "expected_law": "Central Goods and Services Tax Rules, 2017",
+    "expected_unit": "86A",
+    "expected_marker": null,
+    "should_find": true
+  },
+  {
+    "id": "q07",
+    "category": "exact_rule",
+    "query": "What documentary requirements and conditions are specified under Rule 36 for claiming ITC?",
+    "expected_law": "Central Goods and Services Tax Rules, 2017",
+    "expected_unit": "36",
+    "expected_marker": null,
+    "should_find": true
+  },
+  {
+    "id": "q08",
+    "category": "exact_rule",
+    "query": "What are the rules regarding e-way bill generation under Rule 138?",
+    "expected_law": "Central Goods and Services Tax Rules, 2017",
+    "expected_unit": "138",
+    "expected_marker": null,
+    "should_find": true
+  },
+  {
+    "id": "q09",
+    "category": "exact_rule",
+    "query": "What is the application procedure for refund under Rule 89 of CGST Rules?",
+    "expected_law": "Central Goods and Services Tax Rules, 2017",
+    "expected_unit": "89",
+    "expected_marker": null,
+    "should_find": true
+  },
+  {
+    "id": "q10",
+    "category": "exact_rule",
+    "query": "Under what circumstances can registration be suspended under Rule 21A?",
+    "expected_law": "Central Goods and Services Tax Rules, 2017",
+    "expected_unit": "21A",
+    "expected_marker": null,
+    "should_find": true
+  },
+  {
+    "id": "q11",
+    "category": "conceptual",
+    "query": "What is the composition scheme threshold and who is eligible to opt for composition levy?",
+    "expected_law": "Central Goods and Services Tax Act, 2017",
+    "expected_unit": "10",
+    "expected_marker": null,
+    "should_find": true
+  },
+  {
+    "id": "q12",
+    "category": "conceptual",
+    "query": "When is an e-way bill mandatory for movement of goods of consignment value exceeding fifty thousand rupees?",
+    "expected_law": "Central Goods and Services Tax Rules, 2017",
+    "expected_unit": "138",
+    "expected_marker": null,
+    "should_find": true
+  },
+  {
+    "id": "q13",
+    "category": "conceptual",
+    "query": "How is input tax credit reversed on capital goods partly used for business and partly for exempt supplies?",
+    "expected_law": "Central Goods and Services Tax Rules, 2017",
+    "expected_unit": "43",
+    "expected_marker": null,
+    "should_find": true
+  },
+  {
+    "id": "q14",
+    "category": "conceptual",
+    "query": "What is the time limit for issuing a show cause notice for non-payment or short payment of tax without fraud under Section 73?",
+    "expected_law": "Central Goods and Services Tax Act, 2017",
+    "expected_unit": "73",
+    "expected_marker": null,
+    "should_find": true
+  },
+  {
+    "id": "q15",
+    "category": "conceptual",
+    "query": "What are the rules for apportionment of credit in respect of inputs and input services under Rule 42?",
+    "expected_law": "Central Goods and Services Tax Rules, 2017",
+    "expected_unit": "42",
+    "expected_marker": null,
+    "should_find": true
+  },
+  {
+    "id": "q16",
+    "category": "cross_act",
+    "query": "How is the place of supply of services determined where location of supplier and recipient is in India under IGST Act Section 12?",
+    "expected_law": "Integrated Goods and Services Tax Act, 2017",
+    "expected_unit": "12",
+    "expected_marker": null,
+    "should_find": true
+  },
+  {
+    "id": "q17",
+    "category": "cross_act",
+    "query": "How is place of supply of goods imported into or exported from India determined under IGST Act Section 11?",
+    "expected_law": "Integrated Goods and Services Tax Act, 2017",
+    "expected_unit": "11",
+    "expected_marker": null,
+    "should_find": true
+  },
+  {
+    "id": "q18",
+    "category": "cross_act",
+    "query": "What are the levy and collection provisions for integrated tax under Section 5 of IGST Act?",
+    "expected_law": "Integrated Goods and Services Tax Act, 2017",
+    "expected_unit": "5",
+    "expected_marker": null,
+    "should_find": true
+  },
+  {
+    "id": "q19",
+    "category": "trick_not_found",
+    "query": "What are the income tax slab rates and exemptions under the Income Tax Act 1961 in CGST?",
+    "expected_law": null,
+    "expected_unit": null,
+    "expected_marker": null,
+    "should_find": false
+  },
+  {
+    "id": "q20",
+    "category": "trick_not_found",
+    "query": "What are the regulatory guidelines for satellite rocket launches under the CGST Act?",
+    "expected_law": null,
+    "expected_unit": null,
+    "expected_marker": null,
+    "should_find": false
+  }
+]

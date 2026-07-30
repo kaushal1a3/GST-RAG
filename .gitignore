@@ -1,0 +1,78 @@
+# ---------------------------------------------------------------------------
+# Environment Variables & Secret Credentials (CRITICAL - DO NOT COMMIT)
+# ---------------------------------------------------------------------------
+.env
+.env.local
+.env.development
+.env.production
+.env*.local
+*.pem
+*.key
+
+# ---------------------------------------------------------------------------
+# Python Virtual Environments & Caches
+# ---------------------------------------------------------------------------
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# ---------------------------------------------------------------------------
+# Local Vector Databases & Heavy Caches
+# ---------------------------------------------------------------------------
+data/processed/chroma_db/
+*.log
+
+# ---------------------------------------------------------------------------
+# Frontend Node Dependencies & Builds (Vite / React)
+# ---------------------------------------------------------------------------
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/build/
+.npm
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---------------------------------------------------------------------------
+# Vercel & Deployment Build Artefacts
+# ---------------------------------------------------------------------------
+.vercel/
+.output/
+
+# ---------------------------------------------------------------------------
+# IDE & System Files
+# ---------------------------------------------------------------------------
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db
+
+# ---------------------------------------------------------------------------
+# Large Archives & Temporary Files
+# ---------------------------------------------------------------------------
+*.zip
+*.tar.gz
+*.rar
+*.7z
