@@ -231,9 +231,13 @@ export default function App() {
     if (import.meta.env && import.meta.env.VITE_API_BASE_URL) {
       return import.meta.env.VITE_API_BASE_URL.replace(/\/+$/, '');
     }
-    return window.location.origin.includes('8000') 
-      ? window.location.origin 
-      : 'http://127.0.0.1:8000';
+    const isLocal = typeof window !== 'undefined' && (
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.port === '8000' ||
+      window.location.port === '5173'
+    );
+    return isLocal ? 'http://127.0.0.1:8000' : 'https://gst-rag-six.vercel.app';
   });
 
 
