@@ -62,15 +62,25 @@ app = FastAPI(
 
 import os
 
-# Enable CORS for React frontend or cross-origin client access
-allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "*")
-origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
+# Explicitly allow frontend & backend Vercel domains and local dev hosts
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
+custom_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
+
+origins = [
+    "https://gst-rag-yq8v.vercel.app",
+    "https://gst-rag-six.vercel.app",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://localhost:3000",
+] + custom_origins
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if "*" in origins else origins,
+    allow_origins=origins,
     allow_origin_regex=r"https://.*\.vercel\.app|http://.*",
-    allow_credentials=False,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
