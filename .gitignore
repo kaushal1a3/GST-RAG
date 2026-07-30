@@ -31,6 +31,13 @@ htmlcov/
 # Local Vector Databases & Heavy Caches
 # ---------------------------------------------------------------------------
 data/processed/chroma_db/
+backend/data/processed/chroma_db/
+backend/data/processed/embeddings_cache.npz
+backend/data/processed/bm25_index.pkl
+backend/data/raw/
+*.pdf
+*.npz
+*.pkl
 *.log
 
 # ---------------------------------------------------------------------------

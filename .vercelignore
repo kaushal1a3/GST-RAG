@@ -1,0 +1,10 @@
+# Exclude heavy data, frontend source, node_modules, and virtual environments from Vercel Python Function bundle
+backend/data/raw/
+backend/data/processed/chroma_db/
+backend/data/processed/embeddings_cache.npz
+backend/data/processed/bm25_index.pkl
+.venv/
+venv/
+node_modules/
+frontend/node_modules/
+frontend/src/

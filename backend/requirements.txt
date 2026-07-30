@@ -1,42 +1,25 @@
-# GST RAG System – Python Dependencies
-# Python 3.11+ required
-# Install: pip install -r requirements.txt
+# GST RAG System – Production Dependencies (Vercel Serverless Ready)
 
-# ── Core data / ML ────────────────────────────────────────────────────────
+# ── Core Data & Vector Search ─────────────────────────────────────────────
 numpy>=1.26,<3.0
-sentence-transformers>=2.7,<4.0     # local embeddings (BAAI/bge-small-en-v1.5)
-torch>=2.0                           # sentence-transformers backend (CPU)
+qdrant-client>=1.9.0
+fastembed>=0.3.0                       # Lightweight ONNX query embedding (~40MB, no PyTorch required)
 
-# ── Vector store ──────────────────────────────────────────────────────────
-chromadb>=0.5,<1.0                   # local persistent vector DB
-qdrant-client>=1.9.0                 # Qdrant Cloud Vector Database client
+# ── Keyword Search & Utilities ────────────────────────────────────────────
+rank-bm25>=0.2.2                       # BM25Okapi – pure Python
+python-dotenv>=1.0.0                 # Environment variable loader
+tqdm>=4.66
 
+# ── LLM Clients & LangChain Agent ─────────────────────────────────────────
+google-generativeai>=0.8             # Gemini API client
+requests>=2.31                       # HTTP client
+langchain>=0.3                       # LangChain agent framework
+langchain-core>=1.0
+langchain-google-genai>=2.0          # Gemini via LangChain
+langchain-anthropic>=0.3             # Claude via LangChain
+langchain-community>=0.3
 
-# ── Keyword search ────────────────────────────────────────────────────────
-rank-bm25>=0.2.2                     # BM25Okapi – pure Python
-
-# ── Progress / utilities ──────────────────────────────────────────────────
-tqdm>=4.66                           # progress bars during embedding
-python-dotenv>=1.0.0                 # env file loader
-
-# ── LLM clients (Phase 3 – provider-agnostic) ─────────────────────────────
-google-generativeai>=0.8             # Gemini free-tier (optional, needs API key)
-requests>=2.31                       # used by Ollama HTTP client
-
-# ── LangChain Agentic RAG (Phase 3 extension) ─────────────────────────────
-langchain>=0.3                       # core agent + tool calling framework
-langchain-core>=1.0                  # ChatPromptTemplate, tool primitives
-langchain-google-genai>=2.0          # ChatGoogleGenerativeAI (Gemini via LangChain)
-langchain-anthropic>=0.3             # ChatAnthropic (Claude via LangChain)
-langchain-community>=0.3             # Ollama + community integrations
-langchain-ollama>=0.2                # ChatOllama (local Ollama via LangChain)
-
-# ── API layer (Phase 4) ───────────────────────────────────────────────────
+# ── API Layer ─────────────────────────────────────────────────────────────
 fastapi>=0.111
 uvicorn[standard]>=0.29
-
-# ── Frontend (Phase 5) ────────────────────────────────────────────────────
-gradio>=4.36
-
-# ── Evaluation (Phase 6) ─────────────────────────────────────────────────
-# (no extra deps beyond above)
+pydantic>=2.0

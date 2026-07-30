@@ -46,12 +46,43 @@ CANONICAL_LAW_TITLES: dict[str, list[str]] = {
 }
 
 
+class QueryEmbedder:
+    """Wrapper supporting FastEmbed (lightweight ONNX) and SentenceTransformers (PyTorch)."""
+    def __init__(self, model_name: str):
+        self.model_name = model_name
+        self.mode = None
+        self._model = None
+
+        try:
+            from fastembed import TextEmbedding  # type: ignore
+            logger.info("Initializing FastEmbed (ONNX) model for query embedding: %s", model_name)
+            self._model = TextEmbedding(model_name=model_name)
+            self.mode = "fastembed"
+        except Exception as err_fe:
+            logger.debug("FastEmbed unavailable (%s); trying SentenceTransformers...", err_fe)
+            try:
+                from sentence_transformers import SentenceTransformer  # type: ignore
+                logger.info("Initializing SentenceTransformer (PyTorch) model: %s", model_name)
+                self._model = SentenceTransformer(model_name)
+                self.mode = "sentence_transformers"
+            except Exception as err_st:
+                logger.error("Neither fastembed nor sentence_transformers available: %s", err_st)
+                raise RuntimeError("No embedding library available. Install fastembed or sentence-transformers.") from err_st
+
+    def encode(self, query: str) -> list[float]:
+        if self.mode == "fastembed":
+            generator = self._model.embed([query])
+            vec = list(generator)[0]
+            return vec.tolist() if hasattr(vec, "tolist") else list(vec)
+        else:
+            vec = self._model.encode(query, normalize_embeddings=True, convert_to_numpy=True)
+            return vec.tolist() if hasattr(vec, "tolist") else list(vec)
+
+
 @lru_cache(maxsize=1)
-def _get_model(model_name: str):
-    """Load and cache the SentenceTransformer model."""
-    from sentence_transformers import SentenceTransformer  # type: ignore
-    logger.info("Loading embedding model for retrieval: %s", model_name)
-    return SentenceTransformer(model_name)
+def _get_model(model_name: str) -> QueryEmbedder:
+    """Load and cache the query embedding model."""
+    return QueryEmbedder(model_name)
 
 
 @lru_cache(maxsize=1)
@@ -76,14 +107,18 @@ def _get_qdrant_client():
 @lru_cache(maxsize=1)
 def _get_chroma_collection(db_path: str, collection_name: str):
     """Open and cache local ChromaDB persistent collection."""
-    import chromadb  # type: ignore
-    client = chromadb.PersistentClient(path=db_path)
-    col = client.get_collection(collection_name)
-    logger.info(
-        "Opened ChromaDB collection '%s' (%d items).",
-        collection_name, col.count(),
-    )
-    return col
+    try:
+        import chromadb  # type: ignore
+        client = chromadb.PersistentClient(path=db_path)
+        col = client.get_collection(collection_name)
+        logger.info(
+            "Opened ChromaDB collection '%s' (%d items).",
+            collection_name, col.count(),
+        )
+        return col
+    except Exception as exc:
+        logger.warning("Local ChromaDB collection unavailable: %s", exc)
+        return None
 
 
 def _build_where_filter(
@@ -135,7 +170,7 @@ def qdrant_vector_search(
 
     try:
         model = _get_model(model_name)
-        qvec = model.encode(query, normalize_embeddings=True, convert_to_numpy=True).tolist()
+        qvec = model.encode(query)
 
         search_results = q_client.search(
             collection_name=config.QDRANT_COLLECTION,
@@ -186,10 +221,10 @@ def vector_search(
     try:
         model = _get_model(model_name)
         col = _get_chroma_collection(db_path, collection_name)
+        if col is None:
+            return []
 
-        qvec: list[float] = model.encode(
-            query, normalize_embeddings=True, convert_to_numpy=True
-        ).tolist()
+        qvec: list[float] = model.encode(query)
 
         where_filter = _build_where_filter(
             doc_type=doc_type,
