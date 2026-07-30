@@ -13,7 +13,7 @@
   ],
   "builds": [
     {
-      "src": "backend/api/index.py",
+      "src": "backend/api/main.py",
       "use": "@vercel/python"
     },
     {
@@ -27,7 +27,7 @@
   "routes": [
     {
       "src": "/(query|agent-query|health|reindex|docs|openapi.json)",
-      "dest": "backend/api/index.py"
+      "dest": "backend/api/main.py"
     },
     {
       "src": "/api/(.*)",
