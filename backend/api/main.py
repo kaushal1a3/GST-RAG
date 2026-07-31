@@ -22,9 +22,9 @@ import io
 import json
 import logging
 import sys
-import urllib.parse
 from pathlib import Path
 from typing import Any, Optional
+
 
 # UTF-8 stdout fix for Windows
 if hasattr(sys.stdout, "reconfigure"):
@@ -65,75 +65,10 @@ app = FastAPI(
 import os
 
 
-def extract_path_from_header_value(val: bytes) -> str | None:
-    try:
-        decoded = val.decode("utf-8")
-        if decoded.startswith("http://") or decoded.startswith("https://"):
-            parsed = urllib.parse.urlparse(decoded)
-            return parsed.path
-        return decoded
-    except Exception:
-        return None
-
-
-class VercelPathMiddleware:
-    """
-    ASGI middleware to restore the original request path from Vercel's proxy headers.
-    When Vercel rewrites `/(.*)` to `/api/index`, the request path inside ASGI is changed to
-    `/api/index`, which breaks FastAPI routing. This middleware extracts the original path
-    from Vercel-specific request headers and overrides `scope["path"]` before routing.
-    """
-    def __init__(self, app):
-        self.app = app
-
-    async def __call__(self, scope, receive, send):
-        if scope["type"] == "http":
-            current_path = scope.get("path", "")
-            method = scope.get("method", "GET")
-            headers = dict(scope.get("headers", []))
-
-            original_path = None
-
-            # Priority 1: x-original-path is explicitly injected by our vercel.json routes
-            # and is always the correct original path.
-            if b"x-original-path" in headers:
-                path = extract_path_from_header_value(headers[b"x-original-path"])
-                if path:
-                    if not path.startswith("/"):
-                        path = "/" + path
-                    original_path = path
-                    logger.info("Restoring ASGI path from x-original-path: %r -> %r", current_path, original_path)
-
-            # Priority 2: Other Vercel headers (x-matched-path etc.) as fallback
-            if not original_path:
-                for header_name in [b"x-matched-path", b"x-vercel-matched-path", b"x-original-url", b"x-forwarded-url"]:
-                    if header_name in headers:
-                        path = extract_path_from_header_value(headers[header_name])
-                        if path and not path.endswith(".py") and not path.endswith("/index") and path not in ["/api", "/api/"]:
-                            if not path.startswith("/"):
-                                path = "/" + path
-                            original_path = path
-                            logger.info("Rewriting ASGI path from %r to %r via header %s", current_path, original_path, header_name)
-                            break
-
-            # Priority 3: Method-based fallback when path is a Vercel rewrite stub
-            if not original_path and current_path in ["/api/index", "/api/index.py", "/api/index/", "/api", "/api/"]:
-                if method == "POST":
-                    logger.info("Auto-mapping POST %r to /query", current_path)
-                    original_path = "/query"
-                elif method == "GET":
-                    logger.info("Auto-mapping GET %r to /health", current_path)
-                    original_path = "/health"
-
-            if original_path:
-                scope["path"] = original_path
-
-        await self.app(scope, receive, send)
-
-
-
 # Add VercelPathMiddleware to handle routing correctly under Vercel's rewrites
-app.add_middleware(VercelPathMiddleware)
+# REMOVED: VercelPathMiddleware is no longer needed.
+# The new vercel.json uses separate /api/* routes which Vercel forwards with the
+# original request path intact. FastAPI matches e.g. @app.post("/api/query") directly.
 
 # Allow all origins for CORS
 app.add_middleware(

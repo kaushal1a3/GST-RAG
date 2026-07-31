@@ -4,36 +4,18 @@
     {
       "src": "api/index.py",
       "use": "@vercel/python"
+    },
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
     }
   ],
   "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "api/index.py",
-      "headers": {
-        "x-original-path": "/api/$1"
-      }
-    },
-    {
-      "src": "/health",
-      "dest": "api/index.py",
-      "headers": {
-        "x-original-path": "/health"
-      }
-    },
-    {
-      "src": "/query",
-      "dest": "api/index.py",
-      "headers": {
-        "x-original-path": "/query"
-      }
-    },
-    {
-      "src": "/reindex",
-      "dest": "api/index.py",
-      "headers": {
-        "x-original-path": "/reindex"
-      }
-    }
+    { "src": "/api/(.*)", "dest": "api/index.py" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }

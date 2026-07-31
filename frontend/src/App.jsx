@@ -21,25 +21,14 @@ async function sendQueryRequest(apiBaseUrl, question, topK) {
   });
   const headers = { "Content-Type": "application/json" };
 
-  let res = null;
-  // Attempt 1: POST to /query
-  try {
-    res = await fetch(`${apiBaseUrl}/query`, { method: "POST", headers, body: payload });
-  } catch (e) {
-    res = null;
-  }
-
-  // Attempt 2: Fallback POST to /api/query
-  if (!res || !res.ok) {
-    try {
-      const resFallback = await fetch(`${apiBaseUrl}/api/query`, { method: "POST", headers, body: payload });
-      if (resFallback && resFallback.ok) {
-        res = resFallback;
-      }
-    } catch (e) {
-      // Keep initial res if fallback fails
-    }
-  }
+  // Always POST to /api/query — this is the Vercel serverless function route.
+  // Do NOT attempt /query first; on Vercel that path serves static files and
+  // returns 405 for POST requests.
+  const res = await fetch(`${apiBaseUrl}/api/query`, {
+    method: "POST",
+    headers,
+    body: payload,
+  }).catch(() => null);
 
   if (!res) {
     throw new Error("Unable to connect to backend server. Please check if the FastAPI backend is running.");
@@ -313,10 +302,8 @@ export default function App() {
 
   const fetchHealth = async () => {
     try {
-      let res = await fetch(`${apiBaseUrl}/health`).catch(() => null);
-      if (!res || !res.ok) {
-        res = await fetch(`${apiBaseUrl}/api/health`).catch(() => null);
-      }
+      // Always call /api/health — the Vercel serverless function route.
+      const res = await fetch(`${apiBaseUrl}/api/health`).catch(() => null);
 
       if (res && res.ok) {
         const data = await res.json();
@@ -328,6 +315,7 @@ export default function App() {
       setApiHealth({ status: "offline" });
     }
   };
+
 
   // Called when user submits query on LandingPage
   const handleStartChatFromLanding = (queryText) => {
