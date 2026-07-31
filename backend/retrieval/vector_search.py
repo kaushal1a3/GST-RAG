@@ -55,8 +55,11 @@ class QueryEmbedder:
 
         try:
             from fastembed import TextEmbedding  # type: ignore
-            logger.info("Initializing FastEmbed (ONNX) model for query embedding: %s", model_name)
-            self._model = TextEmbedding(model_name=model_name)
+            import os as _os
+            # /tmp is the only writable directory on Vercel Lambda (cold starts need to download model)
+            _cache = _os.environ.get("FASTEMBED_CACHE_DIR", "/tmp/fastembed_cache")
+            logger.info("Initializing FastEmbed (ONNX) model for query embedding: %s (cache=%s)", model_name, _cache)
+            self._model = TextEmbedding(model_name=model_name, cache_dir=_cache)
             self.mode = "fastembed"
         except Exception as err_fe:
             logger.debug("FastEmbed unavailable (%s); trying SentenceTransformers...", err_fe)

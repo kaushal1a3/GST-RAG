@@ -160,10 +160,10 @@ def _call_mock(query: str, context_chunks: list[dict[str, Any]]) -> str:
     for chunk in context_chunks[:3]:
         meta = chunk.get("metadata", {})
         law = chunk.get("parent_law_title") or meta.get("law_title", "GST Law")
-        unit_num = chunk.get("parent_unit_number") or meta.get("unit_number", "Provision")
-        raw_unit = chunk.get("parent_raw_unit") or meta.get("raw_unit", raw_unit_num := f"Section {unit_num}")
+        unit_num = chunk.get("parent_unit_number") or meta.get("unit_number", "")
+        raw_unit = chunk.get("parent_raw_unit") or meta.get("raw_unit", "")
         marker = meta.get("sub_unit_marker") or "Intro/General"
-        
+
         text = chunk.get("expanded_context") or chunk.get("document", "")
         if not text.strip():
             continue
@@ -171,12 +171,11 @@ def _call_mock(query: str, context_chunks: list[dict[str, Any]]) -> str:
         # Extract first 2 meaningful sentences
         sentences = [s.strip() for s in text.replace("\n", " ").split(".") if len(s.strip()) > 15]
         excerpt = ". ".join(sentences[:2]) if sentences else text[:250]
-        
-        header = f"--- CHUNK {index} ---"
-        # Use unit_num as fallback when raw_unit is missing (e.g. Qdrant-only deployment)
+
+        # Use raw_unit if available; fall back to unit_num-based label
         display_unit = raw_unit or (f"Section/Rule {unit_num}" if unit_num else "Provision")
-        citation_ref = f"[{law_title}, {display_unit}, {sub_marker}]"
-        
+        citation_ref = f"[{law}, {display_unit}, {marker}]"
+
         lines.append(f"• According to {display_unit}: {excerpt}. {citation_ref}")
         found_any = True
 
@@ -184,6 +183,7 @@ def _call_mock(query: str, context_chunks: list[dict[str, Any]]) -> str:
         return "The provided legal context does not contain information to answer this question."
 
     return "\n\n".join(lines)
+
 
 
 # ---------------------------------------------------------------------------
