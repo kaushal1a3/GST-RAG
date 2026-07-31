@@ -78,6 +78,7 @@ def main():
         sys.exit(1)
 
     from google import genai as google_genai  # type: ignore  # new official SDK
+    from google.genai import types as google_genai_types  # type: ignore
     genai_client = google_genai.Client(api_key=google_api_key)
 
     embed_model = os.getenv("GOOGLE_EMBEDDING_MODEL", config.GOOGLE_EMBEDDING_MODEL).replace("models/", "")
@@ -86,16 +87,30 @@ def main():
 
     texts = [c.get("text", "") for c in leaf_chunks]
     embeddings_list: list[list[float]] = []
+    embed_cfg = google_genai_types.EmbedContentConfig(output_dimensionality=384) if "gemini-embedding" in embed_model else None
 
-    for i in range(0, len(texts), 100):
-        batch = texts[i : i + 100]
-        result = genai_client.models.embed_content(
-            model=embed_model,
-            contents=batch,
-        )
-        for emb in result.embeddings:
-            embeddings_list.append(list(emb.values))
-        print(f"   Embedded {min(i + 100, len(texts))}/{len(texts)} chunks...")
+    import time
+    for i in range(0, len(texts), 50):
+        batch = texts[i : i + 50]
+        max_retries = 5
+        for attempt in range(max_retries):
+            try:
+                result = genai_client.models.embed_content(
+                    model=embed_model,
+                    contents=batch,
+                    config=embed_cfg,
+                )
+                for emb in result.embeddings:
+                    embeddings_list.append(list(emb.values))
+                break
+            except Exception as exc:
+                if attempt == max_retries - 1:
+                    raise exc
+                print(f"   Rate limit / error on batch {i}: {exc}. Retrying in 10s...")
+                time.sleep(10.0)
+
+        print(f"   Embedded {min(i + 50, len(texts))}/{len(texts)} chunks...")
+        time.sleep(1.5)
 
     import numpy as np_local
     embeddings = np_local.array(embeddings_list, dtype="float32")
