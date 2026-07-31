@@ -180,15 +180,54 @@ def root():
     }
 
 
+import time
+import threading
+
+_health_cache: dict[str, Any] = {"data": None, "timestamp": 0.0}
+
+
+@app.on_event("startup")
+def startup_warmup():
+    """Pre-warm models and database connections in background so user queries don't hit cold-start latency."""
+    def _warmup():
+        logger.info("Warming up RAG pipeline components...")
+        t0 = time.time()
+        try:
+            from retrieval.vector_search import _get_model, _get_qdrant_client
+            _get_qdrant_client()
+            _get_model(config.EMBEDDING_MODEL_NAME)
+        except Exception as exc:
+            logger.warning("Startup vector warmup warning: %s", exc)
+
+        try:
+            from retrieval.reranker import _load_cross_encoder
+            if config.RERANKER_ENABLED:
+                _load_cross_encoder(config.RERANKER_MODEL)
+        except Exception as exc:
+            logger.warning("Startup reranker warmup warning: %s", exc)
+
+        try:
+            from retrieval.keyword_search import _load_bm25_index
+            _load_bm25_index(str(config.BM25_INDEX_FILE), str(config.BM25_IDS_FILE))
+        except Exception as exc:
+            logger.warning("Startup BM25 warmup warning: %s", exc)
+
+        logger.info("RAG pipeline warm-up completed in %.2fs.", time.time() - t0)
+
+    threading.Thread(target=_warmup, daemon=True).start()
+
+
 @app.get("/health", response_model=HealthResponse, tags=["Health"])
 @app.get("/api/health", response_model=HealthResponse, tags=["Health"])
 @app.get("/api/index/health", response_model=HealthResponse, tags=["Health"])
 def health_check():
+    """Return system operational and index loading status with 30s caching to prevent API overload."""
+    now = time.time()
+    if _health_cache["data"] and (now - _health_cache["timestamp"]) < 30.0:
+        return _health_cache["data"]
 
-    """Return system operational and index loading status."""
     leaf_count = 0
     parent_count = 0
-    chroma_ok = False
     bm25_ok = config.BM25_INDEX_FILE.exists()
 
     if config.LEAF_CHUNKS_FILE.exists():
@@ -208,18 +247,13 @@ def health_check():
     qdrant_ok = False
     if config.QDRANT_URL and config.QDRANT_API_KEY:
         try:
-            from qdrant_client import QdrantClient  # type: ignore
-            _qc = QdrantClient(url=config.QDRANT_URL, api_key=config.QDRANT_API_KEY, timeout=5.0)
-            if hasattr(_qc, "query_points"):
-                _res = _qc.query_points(collection_name=config.QDRANT_COLLECTION, limit=1)
-                qdrant_ok = len(getattr(_res, "points", [])) >= 0
-            else:
-                _res = _qc.search(collection_name=config.QDRANT_COLLECTION, limit=1)
-                qdrant_ok = len(_res) >= 0
+            from retrieval.vector_search import _get_qdrant_client
+            qc = _get_qdrant_client()
+            qdrant_ok = qc is not None
         except Exception:
             qdrant_ok = False
 
-    return HealthResponse(
+    resp = HealthResponse(
         status="ok",
         leaf_chunks_count=leaf_count,
         parent_chunks_count=parent_count,
@@ -228,6 +262,9 @@ def health_check():
         embedding_model=config.EMBEDDING_MODEL_NAME,
         llm_provider=config.LLM_PROVIDER,
     )
+    _health_cache["data"] = resp
+    _health_cache["timestamp"] = now
+    return resp
 
 
 @app.post("/query", response_model=QueryResponse, tags=["RAG Query"])

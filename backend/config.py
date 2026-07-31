@@ -89,7 +89,7 @@ CITATION_BOOST: float = 2.0 # score multiplier for explicit citation matches
 RERANKER_ENABLED: bool = True
 RERANKER_MODEL: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 RERANKER_TOP_K: int = 5     # final results after reranking (from HYBRID_TOP_K candidates)
-RERANKER_CANDIDATES: int = 20  # how many fused candidates to feed into reranker
+RERANKER_CANDIDATES: int = 10  # fused candidates fed to reranker (optimized for speed)
 
 # ---------------------------------------------------------------------------
 # Logging
