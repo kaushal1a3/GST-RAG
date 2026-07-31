@@ -80,7 +80,7 @@ export default function LandingPage({
       <header className="w-full max-w-7xl flex justify-between items-center pt-8 px-8 relative z-50">
         {/* Logo / Brand Tag */}
         <div className="flex items-center gap-3">
-          <span className="display-font font-extrabold text-2xl sm:text-[26px] tracking-tight text-stone-900">Ask GST</span>
+          <span className="display-font font-extrabold text-2xl sm:text-[26px] tracking-tight text-stone-900">Ask <span className="text-orange-600">GST</span></span>
         </div>
 
         <div className="flex items-center gap-3">
