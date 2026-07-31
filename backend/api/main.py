@@ -34,7 +34,7 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 import config
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -70,6 +70,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def fix_vercel_path_middleware(request: Request, call_next):
+    """Normalize Vercel serverless path rewrites so all route handlers match."""
+    path = request.url.path
+    if path.startswith("/api/index"):
+        request.scope["path"] = path[10:] or "/"
+    elif path.startswith("/api"):
+        request.scope["path"] = path[4:] or "/"
+    return await call_next(request)
 
 
 
@@ -153,6 +164,8 @@ class ReindexResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 @app.get("/", tags=["General"])
+@app.get("/api", tags=["General"])
+@app.get("/api/index", tags=["General"])
 def root():
     """Welcome endpoint pointing to docs."""
     return {
@@ -164,7 +177,10 @@ def root():
 
 
 @app.get("/health", response_model=HealthResponse, tags=["Health"])
+@app.get("/api/health", response_model=HealthResponse, tags=["Health"])
+@app.get("/api/index/health", response_model=HealthResponse, tags=["Health"])
 def health_check():
+
     """Return system operational and index loading status."""
     leaf_count = 0
     parent_count = 0
@@ -205,6 +221,8 @@ def health_check():
 
 
 @app.post("/query", response_model=QueryResponse, tags=["RAG Query"])
+@app.post("/api/query", response_model=QueryResponse, tags=["RAG Query"])
+@app.post("/api/index/query", response_model=QueryResponse, tags=["RAG Query"])
 def handle_query(req: QueryRequest):
     """
     Process a natural language GST query through the end-to-end RAG pipeline:
@@ -291,6 +309,8 @@ def handle_query(req: QueryRequest):
 
 
 @app.post("/agent-query", response_model=AgentQueryResponse, tags=["Agentic RAG"])
+@app.post("/api/agent-query", response_model=AgentQueryResponse, tags=["Agentic RAG"])
+@app.post("/api/index/agent-query", response_model=AgentQueryResponse, tags=["Agentic RAG"])
 def handle_agent_query(req: QueryRequest):
     """
     Process a GST query through the LangChain agentic loop with LLM tool calling.
@@ -346,7 +366,10 @@ def handle_agent_query(req: QueryRequest):
 
 
 @app.post("/reindex", response_model=ReindexResponse, tags=["Admin"])
+@app.post("/api/reindex", response_model=ReindexResponse, tags=["Admin"])
+@app.post("/api/index/reindex", response_model=ReindexResponse, tags=["Admin"])
 def handle_reindex(req: ReindexRequest):
+
     """Re-run Phase 1 ingestion to wipe and rebuild indexes."""
     if not req.confirm:
         raise HTTPException(
