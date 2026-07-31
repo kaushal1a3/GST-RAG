@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation, useParams, Navigate } from 'react-router-dom';
 import LandingPage from './components/LandingPage';
 import ChatSession from './components/ChatSession';
 import AboutModal from './components/AboutModal';
@@ -70,10 +70,19 @@ function ChatContainer({
   onOpenAbout 
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { threadId } = useParams();
 
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
+
+  useEffect(() => {
+    if (location.state?.initialQuery) {
+      const initialQuery = location.state.initialQuery;
+      navigate(location.pathname, { replace: true, state: {} });
+      handleSendMessage(initialQuery);
+    }
+  }, [location.state?.initialQuery]);
 
   const isNewSession = !threadId;
 
@@ -343,67 +352,7 @@ export default function App() {
     }
 
     const newUniqueId = generateUniqueThreadId();
-    const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    
-    const userMsg = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      content: cleanQuery,
-      timestamp: currentTime
-    };
-
-    const newThread = {
-      id: newUniqueId,
-      title: truncateTitle(cleanQuery),
-      createdAt: Date.now(),
-      messages: [userMsg]
-    };
-
-    setThreads(prev => [newThread, ...prev]);
-    navigate(`/chat/${newUniqueId}`);
-
-    // Fetch backend RAG answer via sendQueryRequest
-    sendQueryRequest(apiBaseUrl, cleanQuery, topK)
-      .then(data => {
-        const aiMsg = {
-          id: `ai-${Date.now()}`,
-          role: "assistant",
-          content: data.answer,
-          citations: data.citations || [],
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        setThreads(prevThreads => 
-          prevThreads.map(t => {
-            if (t.id === newUniqueId) {
-              return {
-                ...t,
-                messages: [...t.messages, aiMsg]
-              };
-            }
-            return t;
-          })
-        );
-      })
-      .catch(err => {
-        const errorMsg = {
-          id: `err-${Date.now()}`,
-          role: "assistant",
-          content: `⚠️ **Error processing request**: ${err.message}`,
-          citations: [],
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        setThreads(prevThreads => 
-          prevThreads.map(t => {
-            if (t.id === newUniqueId) {
-              return {
-                ...t,
-                messages: [...t.messages, errorMsg]
-              };
-            }
-            return t;
-          })
-        );
-      });
+    navigate(`/chat/${newUniqueId}`, { state: { initialQuery: cleanQuery } });
   };
 
   return (
