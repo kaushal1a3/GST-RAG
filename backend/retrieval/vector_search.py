@@ -44,7 +44,7 @@ CANONICAL_LAW_TITLES: dict[str, list[str]] = {
 
 
 class QueryEmbedder:
-    """Embed queries using Google GenAI (text-embedding-004 / Gemini Embedding 2), FastEmbed, or SentenceTransformers."""
+    """Embed queries using SentenceTransformers / FastEmbed (BAAI/bge-small-en-v1.5) or Google GenAI."""
 
     def __init__(self, model_name: Optional[str] = None):
         import os
@@ -52,10 +52,30 @@ class QueryEmbedder:
         self.mode = None
         self._model = None
 
-        api_key = config.GEMINI_API_KEY or os.environ.get("GEMINI_API_KEY", "")
+        # --- 1. Primary: SentenceTransformers (BAAI/bge-small-en-v1.5) ---
+        try:
+            from sentence_transformers import SentenceTransformer  # type: ignore
+            logger.info("Using SentenceTransformer model for query embeddings: %s", self.model_name)
+            self._model = SentenceTransformer(self.model_name)
+            self.mode = "sentence_transformers"
+        except Exception as err_st:
+            logger.debug("SentenceTransformers unavailable (%s); trying FastEmbed...", err_st)
 
-        # --- 1. Primary: Google GenAI (Gemini Embedding 2 - gemini-embedding-2) ---
-        if api_key:
+        # --- 2. Secondary: FastEmbed ONNX (BAAI/bge-small-en-v1.5) ---
+        if self.mode is None:
+            try:
+                from fastembed import TextEmbedding  # type: ignore
+                _cache = os.environ.get("FASTEMBED_CACHE_DIR", "/tmp/fastembed_cache")
+                os.makedirs(_cache, exist_ok=True)
+                logger.info("Using FastEmbed ONNX model: %s (cache=%s)", self.model_name, _cache)
+                self._model = TextEmbedding(model_name=self.model_name, cache_dir=_cache)
+                self.mode = "fastembed"
+            except Exception as err_fe:
+                logger.warning("FastEmbed unavailable (%s); trying Google GenAI...", err_fe)
+
+        # --- 3. Fallback: Google GenAI (gemini-embedding-2) ---
+        api_key = config.GEMINI_API_KEY or os.environ.get("GEMINI_API_KEY", "")
+        if self.mode is None and api_key:
             try:
                 from google import genai as google_genai  # type: ignore
                 from google.genai import types as google_genai_types  # type: ignore
@@ -69,37 +89,22 @@ class QueryEmbedder:
                     self._google_embed_model = embed_model
                     self._genai_types = google_genai_types
                     self.mode = "google"
-                    logger.info("Using Google GenAI embedding model: %s (dim=%d)", embed_model, len(test.embeddings[0].values))
+                    logger.info("Using Google GenAI embedding fallback: %s (dim=%d)", embed_model, len(test.embeddings[0].values))
             except Exception as err_g:
-                logger.warning("Google embedding initialization failed (%s); trying local fallbacks...", err_g)
-
-        # --- 2. Secondary Fallback: FastEmbed ONNX ---
-        if self.mode is None:
-            try:
-                from fastembed import TextEmbedding  # type: ignore
-                _cache = os.environ.get("FASTEMBED_CACHE_DIR", "/tmp/fastembed_cache")
-                os.makedirs(_cache, exist_ok=True)
-                logger.info("Falling back to FastEmbed ONNX model: %s (cache=%s)", self.model_name, _cache)
-                self._model = TextEmbedding(model_name=self.model_name, cache_dir=_cache)
-                self.mode = "fastembed"
-            except Exception as err_fe:
-                logger.warning("FastEmbed unavailable (%s); trying SentenceTransformers...", err_fe)
-
-        # --- 3. Tertiary Fallback: SentenceTransformers ---
-        if self.mode is None:
-            try:
-                from sentence_transformers import SentenceTransformer  # type: ignore
-                logger.info("Falling back to SentenceTransformer model: %s", self.model_name)
-                self._model = SentenceTransformer(self.model_name)
-                self.mode = "sentence_transformers"
-            except Exception as err_st:
-                logger.error("SentenceTransformers unavailable (%s).", err_st)
+                logger.error("Google embedding fallback failed: %s", err_g)
 
         if self.mode is None:
-            raise RuntimeError("No embedding library available. Set GEMINI_API_KEY or install fastembed.")
+            raise RuntimeError("No embedding library available. Install sentence-transformers or fastembed.")
 
     def encode(self, query: str) -> list[float]:
-        if self.mode == "google":
+        if self.mode == "sentence_transformers":
+            vec = self._model.encode(query, normalize_embeddings=True, convert_to_numpy=True)
+            return vec.tolist() if hasattr(vec, "tolist") else list(vec)
+        elif self.mode == "fastembed":
+            generator = self._model.embed([query])
+            vec = list(generator)[0]
+            return vec.tolist() if hasattr(vec, "tolist") else list(vec)
+        elif self.mode == "google":
             embed_cfg = self._genai_types.EmbedContentConfig(output_dimensionality=self._embed_dim) if "gemini-embedding" in self._google_embed_model else None
             result = self._google_client.models.embed_content(
                 model=self._google_embed_model,
@@ -107,13 +112,6 @@ class QueryEmbedder:
                 config=embed_cfg,
             )
             return list(result.embeddings[0].values)
-        elif self.mode == "fastembed":
-            generator = self._model.embed([query])
-            vec = list(generator)[0]
-            return vec.tolist() if hasattr(vec, "tolist") else list(vec)
-        elif self.mode == "sentence_transformers":
-            vec = self._model.encode(query, normalize_embeddings=True, convert_to_numpy=True)
-            return vec.tolist() if hasattr(vec, "tolist") else list(vec)
         return []
 
 
