@@ -237,18 +237,27 @@ export default function App() {
   const [showAboutModal, setShowAboutModal] = useState(false);
 
   const [apiBaseUrl] = useState(() => {
-    if (import.meta.env && import.meta.env.VITE_API_BASE_URL) {
-      return import.meta.env.VITE_API_BASE_URL.replace(/\/+$/, '');
-    }
     const isLocal = typeof window !== 'undefined' && (
       window.location.hostname === 'localhost' ||
       window.location.hostname === '127.0.0.1' ||
+      window.location.hostname.startsWith('192.168.') ||
       window.location.port === '8000' ||
       window.location.port === '5173'
     );
-    return isLocal ? 'http://127.0.0.1:8000' : 'https://gst-rag-six.vercel.app';
-  });
 
+    if (isLocal) {
+      if (import.meta.env && import.meta.env.VITE_API_BASE_URL && (import.meta.env.VITE_API_BASE_URL.includes('localhost') || import.meta.env.VITE_API_BASE_URL.includes('127.0.0.1'))) {
+        return import.meta.env.VITE_API_BASE_URL.replace(/\/+$/, '');
+      }
+      return 'http://127.0.0.1:8000';
+    }
+
+    if (import.meta.env && import.meta.env.VITE_API_BASE_URL && import.meta.env.VITE_API_BASE_URL.trim()) {
+      return import.meta.env.VITE_API_BASE_URL.replace(/\/+$/, '');
+    }
+
+    return typeof window !== 'undefined' ? window.location.origin : 'http://127.0.0.1:8000';
+  });
 
   // Persist threads to localStorage
   useEffect(() => {
@@ -268,12 +277,16 @@ export default function App() {
 
   const fetchHealth = async () => {
     try {
-      const res = await fetch(`${apiBaseUrl}/health`);
-      if (res.ok) {
+      let res = await fetch(`${apiBaseUrl}/health`).catch(() => null);
+      if (!res || !res.ok) {
+        res = await fetch(`${apiBaseUrl}/api/health`).catch(() => null);
+      }
+
+      if (res && res.ok) {
         const data = await res.json();
         setApiHealth(data);
       } else {
-        setApiHealth({ status: "error" });
+        setApiHealth({ status: "offline" });
       }
     } catch (err) {
       setApiHealth({ status: "offline" });
