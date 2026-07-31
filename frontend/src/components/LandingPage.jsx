@@ -181,7 +181,7 @@ export default function LandingPage({
         <div className="w-full max-w-3xl flex flex-col gap-6">
           {/* Input Box */}
           <form onSubmit={handleSubmit} className="w-full bg-white border border-orange-500/20 rounded-2xl p-6 sm:p-7 flex flex-col gap-5 relative group shadow-xl">
-            <div className="w-full relative flex items-center bg-[#FFFBF5]/80 border border-orange-500/20 rounded-xl p-3.5 shadow-sm">
+            <div className="w-full relative bg-[#FFFBF5]/80 border border-orange-500/20 rounded-xl p-3.5 shadow-sm">
               <textarea
                 rows={2}
                 value={inputQuery}
@@ -195,13 +195,16 @@ export default function LandingPage({
                   }
                 }}
                 placeholder=""
-                className="w-full text-base sm:text-lg text-stone-900 placeholder-transparent bg-transparent border-none outline-none resize-none leading-relaxed z-10 relative font-medium"
+                className="w-full text-base sm:text-lg text-stone-900 placeholder-transparent bg-transparent border-none outline-none resize-none leading-relaxed z-10 relative font-medium block m-0 p-0"
               />
 
               {/* Kinetic Typography Suggestions */}
               {inputQuery.length === 0 && (
-                <div className="absolute inset-0 pointer-events-none flex items-center px-4 text-base text-stone-400 transition-all duration-500 ease-in-out font-normal overflow-hidden whitespace-nowrap">
-                  <span className="inline-block">{suggestionText}</span>
+                <div className="absolute inset-0 p-3.5 pointer-events-none flex items-start text-base sm:text-lg text-stone-400 font-medium leading-relaxed overflow-hidden whitespace-nowrap z-0">
+                  <span className="inline-block truncate">
+                    {suggestionText}
+                    <span className="inline-block w-0.5 h-[1.1em] bg-orange-500/80 ml-0.5 align-middle animate-pulse"></span>
+                  </span>
                 </div>
               )}
             </div>
