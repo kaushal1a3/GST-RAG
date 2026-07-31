@@ -180,8 +180,8 @@ export default function LandingPage({
         {/* Chat Input & Suggestions */}
         <div className="w-full max-w-3xl flex flex-col gap-6">
           {/* Input Box */}
-          <form onSubmit={handleSubmit} className="w-full bg-white border border-orange-500/20 rounded-2xl p-6 sm:p-7 flex flex-col gap-5 relative group shadow-xl">
-            <div className="w-full relative bg-[#FFFBF5]/80 border border-orange-500/20 rounded-xl p-3.5 shadow-sm">
+          <form onSubmit={handleSubmit} className="w-full bg-white border border-orange-500/20 rounded-2xl p-5 sm:p-6 flex flex-col gap-4 relative group shadow-xl transition-all focus-within:border-orange-500/40">
+            <div className="w-full relative">
               <textarea
                 rows={2}
                 value={inputQuery}
@@ -200,7 +200,7 @@ export default function LandingPage({
 
               {/* Kinetic Typography Suggestions */}
               {inputQuery.length === 0 && (
-                <div className="absolute inset-0 p-3.5 pointer-events-none flex items-start text-base sm:text-lg text-stone-400 font-medium leading-relaxed overflow-hidden whitespace-nowrap z-0">
+                <div className="absolute inset-0 pointer-events-none flex items-start text-base sm:text-lg text-stone-400 font-medium leading-relaxed overflow-hidden whitespace-nowrap z-0">
                   <span className="inline-block truncate">
                     {suggestionText}
                     <span className="inline-block w-0.5 h-[1.1em] bg-orange-500/80 ml-0.5 align-middle animate-pulse"></span>
@@ -209,7 +209,7 @@ export default function LandingPage({
               )}
             </div>
 
-            <div className="w-full flex justify-end items-center pt-2">
+            <div className="w-full flex justify-end items-center">
               <div className="flex items-center gap-3">
                 {/* Attach Button */}
                 <div className="relative group/tooltip">
