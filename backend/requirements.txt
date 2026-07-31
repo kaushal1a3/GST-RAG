@@ -11,7 +11,7 @@ python-dotenv>=1.0.0                 # Environment variable loader
 tqdm>=4.66
 
 # ── LLM Clients & LangChain Agent ─────────────────────────────────────────
-google-generativeai>=0.8             # Gemini API client
+google-genai>=0.3                    # Official Google GenAI SDK (replaces deprecated google-generativeai)
 requests>=2.31                       # HTTP client
 langchain>=0.3                       # LangChain agent framework
 langchain-core>=1.0

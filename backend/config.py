@@ -48,13 +48,13 @@ EMBEDDING_DIM: int = int(os.getenv("EMBEDDING_DIM", "768"))   # 768 for Google t
 GOOGLE_EMBEDDING_MODEL: str = os.getenv("GOOGLE_EMBEDDING_MODEL", "models/text-embedding-004")
 
 # ---------------------------------------------------------------------------
-# Vector Store Settings (ChromaDB local vs Qdrant Cloud)
+# Vector Store Settings (Qdrant Cloud)
 # ---------------------------------------------------------------------------
-VECTOR_DB_PROVIDER: str = os.getenv("VECTOR_DB_PROVIDER", "qdrant" if os.getenv("QDRANT_URL") else "chroma")
-CHROMA_COLLECTION_NAME: str = "gst_leaf_chunks"
+VECTOR_DB_PROVIDER: str = "qdrant"
 QDRANT_URL: str = os.getenv("QDRANT_URL", "")
 QDRANT_API_KEY: str = os.getenv("QDRANT_API_KEY", "")
 QDRANT_COLLECTION: str = os.getenv("QDRANT_COLLECTION", "gst_leaf_chunks")
+
 
 
 # ---------------------------------------------------------------------------

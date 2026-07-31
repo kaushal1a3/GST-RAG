@@ -88,12 +88,10 @@ def retrieve(
     # 2. Rewrite query (do NOT send raw conversational query directly to vector DB)
     search_query = rewrite_query(query, parsed=parsed)
 
-    # 3. Vector search using preprocessed search query
+    # 3. Vector search using preprocessed search query against Qdrant Cloud
     v_hits = vector_search(
         query=search_query,
         model_name=config.EMBEDDING_MODEL_NAME,
-        db_path=str(config.CHROMA_DB_DIR),
-        collection_name=config.CHROMA_COLLECTION_NAME,
         top_k=_vtk,
         doc_type=doc_type,
         law_title_keywords=law_kws,

@@ -1,10 +1,7 @@
 """
 retrieval/vector_search.py
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Query vector databases (Qdrant Cloud or local ChromaDB) for semantically similar chunks.
-
-Supports Qdrant Cloud integration via QDRANT_URL and QDRANT_API_KEY environment variables,
-with automatic fallback to local ChromaDB if unavailable.
+Query Qdrant Cloud Vector DB for semantically similar GST chunks.
 """
 from __future__ import annotations
 
@@ -47,74 +44,63 @@ CANONICAL_LAW_TITLES: dict[str, list[str]] = {
 
 
 class QueryEmbedder:
-    """Embed queries using Google text-embedding-004 (primary, API-based, no download)
-    or FastEmbed ONNX (fallback for local dev without a Gemini API key)."""
+    """Embed queries using SentenceTransformer / FastEmbed (or Google Generative AI)."""
 
     def __init__(self, model_name: str):
         self.model_name = model_name
         self.mode = None
         self._model = None
 
-        # --- Primary: Google Generative AI embedding (no local download required) ---
-        api_key = config.GEMINI_API_KEY
-        if api_key:
-            try:
-                import google.generativeai as genai  # type: ignore
-                genai.configure(api_key=api_key)
-                # Verify the model is accessible by making a tiny test call
-                test = genai.embed_content(
-                    model=config.GOOGLE_EMBEDDING_MODEL,
-                    content="test",
-                    task_type="retrieval_query",
-                )
-                if test and test.get("embedding"):
-                    self.mode = "google"
-                    logger.info(
-                        "Using Google embedding model: %s (dim=%d)",
-                        config.GOOGLE_EMBEDDING_MODEL, len(test["embedding"]),
-                    )
-            except Exception as err_g:
-                logger.warning("Google embedding unavailable (%s); trying FastEmbed...", err_g)
-
-        # --- Fallback: FastEmbed ONNX (local dev only) ---
-        if self.mode is None:
+        # --- Primary for 384-dim BGE embeddings (matching Qdrant collection) ---
+        try:
+            from sentence_transformers import SentenceTransformer  # type: ignore
+            logger.info("Using SentenceTransformer model for query embeddings: %s", model_name)
+            self._model = SentenceTransformer(model_name)
+            self.mode = "sentence_transformers"
+        except Exception as err_st:
+            logger.debug("SentenceTransformers unavailable (%s); trying FastEmbed...", err_st)
             try:
                 from fastembed import TextEmbedding  # type: ignore
                 import os as _os
                 _cache = _os.environ.get("FASTEMBED_CACHE_DIR", "/tmp/fastembed_cache")
-                logger.info(
-                    "Falling back to FastEmbed ONNX model: %s (cache=%s)", model_name, _cache
-                )
+                logger.info("Falling back to FastEmbed ONNX model: %s (cache=%s)", model_name, _cache)
                 self._model = TextEmbedding(model_name=model_name, cache_dir=_cache)
                 self.mode = "fastembed"
             except Exception as err_fe:
-                logger.debug("FastEmbed unavailable (%s); trying SentenceTransformers...", err_fe)
-                try:
-                    from sentence_transformers import SentenceTransformer  # type: ignore
-                    logger.info("Using SentenceTransformer model: %s", model_name)
-                    self._model = SentenceTransformer(model_name)
-                    self.mode = "sentence_transformers"
-                except Exception as err_st:
-                    raise RuntimeError(
-                        "No embedding library available. Set GEMINI_API_KEY or install fastembed."
-                    ) from err_st
+                logger.warning("FastEmbed unavailable (%s); trying Google GenAI...", err_fe)
+
+        # --- Fallback for Google GenAI ---
+        if self.mode is None and config.GEMINI_API_KEY:
+            try:
+                from google import genai as google_genai  # type: ignore
+                _g_client = google_genai.Client(api_key=config.GEMINI_API_KEY)
+                _embed_model = "text-embedding-004"
+                test = _g_client.models.embed_content(model=_embed_model, contents="test")
+                if test and test.embeddings:
+                    self._google_client = _g_client
+                    self._google_embed_model = _embed_model
+                    self.mode = "google"
+            except Exception as err_g:
+                logger.error("Google embedding fallback failed: %s", err_g)
+
+        if self.mode is None:
+            raise RuntimeError("No embedding library available. Please install sentence-transformers or fastembed.")
 
     def encode(self, query: str) -> list[float]:
-        if self.mode == "google":
-            import google.generativeai as genai  # type: ignore
-            result = genai.embed_content(
-                model=config.GOOGLE_EMBEDDING_MODEL,
-                content=query,
-                task_type="retrieval_query",
-            )
-            return result["embedding"]
+        if self.mode == "sentence_transformers":
+            vec = self._model.encode(query, normalize_embeddings=True, convert_to_numpy=True)
+            return vec.tolist() if hasattr(vec, "tolist") else list(vec)
         elif self.mode == "fastembed":
             generator = self._model.embed([query])
             vec = list(generator)[0]
             return vec.tolist() if hasattr(vec, "tolist") else list(vec)
-        else:
-            vec = self._model.encode(query, normalize_embeddings=True, convert_to_numpy=True)
-            return vec.tolist() if hasattr(vec, "tolist") else list(vec)
+        elif self.mode == "google":
+            result = self._google_client.models.embed_content(
+                model=self._google_embed_model,
+                contents=query,
+            )
+            return list(result.embeddings[0].values)
+        return []
 
 
 @lru_cache(maxsize=1)
@@ -127,6 +113,7 @@ def _get_model(model_name: str) -> QueryEmbedder:
 def _get_qdrant_client():
     """Connect and cache Qdrant Cloud Client."""
     if not config.QDRANT_URL or not config.QDRANT_API_KEY:
+        logger.error("QDRANT_URL or QDRANT_API_KEY not configured!")
         return None
     try:
         from qdrant_client import QdrantClient  # type: ignore
@@ -140,60 +127,6 @@ def _get_qdrant_client():
     except Exception as exc:
         logger.error("Failed to connect to Qdrant Cloud: %s", exc)
         return None
-
-
-@lru_cache(maxsize=1)
-def _get_chroma_collection(db_path: str, collection_name: str):
-    """Open and cache local ChromaDB persistent collection."""
-    try:
-        import chromadb  # type: ignore
-        client = chromadb.PersistentClient(path=db_path)
-        col = client.get_collection(collection_name)
-        logger.info(
-            "Opened ChromaDB collection '%s' (%d items).",
-            collection_name, col.count(),
-        )
-        return col
-    except Exception as exc:
-        logger.warning("Local ChromaDB collection unavailable: %s", exc)
-        return None
-
-
-def _build_where_filter(
-    doc_type: Optional[str],
-    law_title_keywords: list[str],
-    unit_numbers: list[str],
-) -> Optional[dict]:
-    """Build a valid ChromaDB 'where' filter dict."""
-    clauses: list[dict] = []
-
-    if doc_type in ("act", "rule"):
-        clauses.append({"doc_type": {"$eq": doc_type}})
-
-    if unit_numbers:
-        if len(unit_numbers) == 1:
-            clauses.append({"unit_number": {"$eq": unit_numbers[0]}})
-        else:
-            clauses.append({"unit_number": {"$in": unit_numbers}})
-
-    matching_titles: set[str] = set()
-    for kw in law_title_keywords:
-        for key, titles in CANONICAL_LAW_TITLES.items():
-            if key.lower() in kw.lower() or kw.lower() in key.lower():
-                matching_titles.update(titles)
-
-    if matching_titles:
-        title_list = list(matching_titles)
-        if len(title_list) == 1:
-            clauses.append({"law_title": {"$eq": title_list[0]}})
-        else:
-            clauses.append({"law_title": {"$in": title_list}})
-
-    if not clauses:
-        return None
-    if len(clauses) == 1:
-        return clauses[0]
-    return {"$and": clauses}
 
 
 def qdrant_vector_search(
@@ -210,107 +143,62 @@ def qdrant_vector_search(
         model = _get_model(model_name)
         qvec = model.encode(query)
 
-        search_results = q_client.search(
-            collection_name=config.QDRANT_COLLECTION,
-            query_vector=qvec,
-            limit=top_k
-        )
+        # Support both newer query_points() and older search() APIs in qdrant-client
+        if hasattr(q_client, "query_points"):
+            response = q_client.query_points(
+                collection_name=config.QDRANT_COLLECTION,
+                query=qvec,
+                limit=top_k
+            )
+            search_results = getattr(response, "points", [])
+        else:
+            search_results = q_client.search(
+                collection_name=config.QDRANT_COLLECTION,
+                query_vector=qvec,
+                limit=top_k
+            )
 
         hits: list[dict[str, Any]] = []
         for point in search_results:
-            payload = point.payload or {}
-            chunk_id = payload.get("chunk_id", str(point.id))
+            payload = getattr(point, "payload", {}) or {}
+            point_id = getattr(point, "id", "")
+            chunk_id = payload.get("chunk_id", str(point_id))
             hits.append({
                 "id": chunk_id,
-                "score": float(point.score),
+                "score": float(getattr(point, "score", 0.0)),
                 "metadata": payload,
                 "document": payload.get("text", ""),
                 "source": "vector_qdrant",
             })
 
-        logger.info("Qdrant Cloud vector search returned %d hits for query: %r", len(hits), query[:80])
+        logger.info(
+            "[QDRANT CLOUD] Cloud retrieval completed | Collection: '%s' | Hits: %d | Top Score: %.4f | Query: %r",
+            config.QDRANT_COLLECTION,
+            len(hits),
+            hits[0]["score"] if hits else 0.0,
+            query[:80],
+        )
         return hits
     except Exception as exc:
-        logger.warning("Qdrant Cloud search error (%s); falling back to local ChromaDB.", exc)
+        logger.error("[QDRANT CLOUD] Cloud retrieval error: %s", exc)
         return None
 
 
 def vector_search(
     query: str,
-    model_name: str,
-    db_path: str,
-    collection_name: str,
+    model_name: str = config.EMBEDDING_MODEL_NAME,
     top_k: int = 15,
     doc_type: Optional[str] = None,
     law_title_keywords: Optional[list[str]] = None,
     unit_numbers: Optional[list[str]] = None,
+    db_path: Optional[str] = None,
+    collection_name: Optional[str] = None,
+    **kwargs: Any,
 ) -> list[dict[str, Any]]:
     """
-    Embed *query* and return top-k semantically similar leaf chunks.
-    Tries Qdrant Cloud first if configured, falling back to local ChromaDB.
+    Embed *query* and return top-k semantically similar leaf chunks directly from Qdrant Cloud.
+    No local vector database is used.
     """
-    # 1. Try Qdrant Cloud if credentials exist
-    if config.QDRANT_URL and config.QDRANT_API_KEY:
-        q_hits = qdrant_vector_search(query=query, model_name=model_name, top_k=top_k)
-        if q_hits is not None and len(q_hits) > 0:
-            return q_hits
-
-    # 2. Fallback to Local ChromaDB
-    try:
-        model = _get_model(model_name)
-        col = _get_chroma_collection(db_path, collection_name)
-        if col is None:
-            return []
-
-        qvec: list[float] = model.encode(query)
-
-        where_filter = _build_where_filter(
-            doc_type=doc_type,
-            law_title_keywords=law_title_keywords or [],
-            unit_numbers=unit_numbers or [],
-        )
-
-        query_kwargs: dict[str, Any] = {
-            "query_embeddings": [qvec],
-            "n_results": top_k,
-            "include": ["metadatas", "distances", "documents"],
-        }
-        if where_filter:
-            query_kwargs["where"] = where_filter
-
-        results = None
-        if where_filter:
-            try:
-                results = col.query(**query_kwargs)
-                if not results or not results["ids"][0]:
-                    logger.info("Filtered Chroma query returned 0 results; falling back to unfiltered search.")
-                    results = None
-            except Exception as exc:
-                logger.warning("Chroma query with filter failed (%s); falling back to unfiltered search.", exc)
-                results = None
-
-        if results is None:
-            query_kwargs.pop("where", None)
-            results = col.query(**query_kwargs)
-
-        ids = results["ids"][0]
-        distances = results["distances"][0]
-        metadatas = results["metadatas"][0]
-        documents = results["documents"][0]
-
-        hits: list[dict[str, Any]] = []
-        for chunk_id, dist, meta, doc in zip(ids, distances, metadatas, documents):
-            similarity = max(0.0, 1.0 - dist)
-            hits.append({
-                "id": chunk_id,
-                "score": similarity,
-                "metadata": meta,
-                "document": doc,
-                "source": "vector",
-            })
-
-        logger.debug("Local Chroma vector search returned %d hits for query: %r", len(hits), query[:80])
-        return hits
-    except Exception as err:
-        logger.error("Local Chroma search failed: %s", err)
-        return []
+    hits = qdrant_vector_search(query=query, model_name=model_name, top_k=top_k)
+    logger.info("[CLOUD RETRIEVAL DONE] Successfully retrieved %d chunks from Qdrant Cloud DB.", len(hits or []))
+    return hits or []

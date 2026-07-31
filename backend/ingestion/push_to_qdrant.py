@@ -71,31 +71,30 @@ def main():
     with open(config.LEAF_CHUNKS_FILE, "r", encoding="utf-8") as f:
         leaf_chunks = json.load(f)
     print(f"2. Loaded {len(leaf_chunks)} leaf chunks from processed dataset.")
-
     # Compute embeddings via Google text-embedding-004 (no local model download needed)
     google_api_key = os.getenv("GEMINI_API_KEY") or config.GEMINI_API_KEY
     if not google_api_key:
         print("\n[ERROR] GEMINI_API_KEY must be set to generate embeddings via Google API.")
         sys.exit(1)
 
-    import google.generativeai as genai  # type: ignore
-    genai.configure(api_key=google_api_key)
+    from google import genai as google_genai  # type: ignore  # new official SDK
+    genai_client = google_genai.Client(api_key=google_api_key)
 
-    google_embed_model = os.getenv("GOOGLE_EMBEDDING_MODEL", config.GOOGLE_EMBEDDING_MODEL)
-    print(f"3. Computing embeddings via Google API model: {google_embed_model}")
-    print(f"   This will make {len(leaf_chunks)} API calls (batched 100 at a time)...")
+    embed_model = os.getenv("GOOGLE_EMBEDDING_MODEL", config.GOOGLE_EMBEDDING_MODEL).replace("models/", "")
+    print(f"3. Computing embeddings via Google API model: {embed_model}")
+    print(f"   Processing {len(leaf_chunks)} chunks in batches of 100...")
 
     texts = [c.get("text", "") for c in leaf_chunks]
     embeddings_list: list[list[float]] = []
 
     for i in range(0, len(texts), 100):
         batch = texts[i : i + 100]
-        result = genai.embed_content(
-            model=google_embed_model,
-            content=batch,
-            task_type="retrieval_document",
+        result = genai_client.models.embed_content(
+            model=embed_model,
+            contents=batch,
         )
-        embeddings_list.extend(result["embedding"])
+        for emb in result.embeddings:
+            embeddings_list.append(list(emb.values))
         print(f"   Embedded {min(i + 100, len(texts))}/{len(texts)} chunks...")
 
     import numpy as np_local

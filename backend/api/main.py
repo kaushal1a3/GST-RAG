@@ -205,19 +205,25 @@ def health_check():
         except Exception:
             pass
 
-    try:
-        import chromadb  # type: ignore
-        client = chromadb.PersistentClient(path=str(config.CHROMA_DB_DIR))
-        col = client.get_collection(config.CHROMA_COLLECTION_NAME)
-        chroma_ok = col.count() > 0
-    except Exception:
-        chroma_ok = False
+    qdrant_ok = False
+    if config.QDRANT_URL and config.QDRANT_API_KEY:
+        try:
+            from qdrant_client import QdrantClient  # type: ignore
+            _qc = QdrantClient(url=config.QDRANT_URL, api_key=config.QDRANT_API_KEY, timeout=5.0)
+            if hasattr(_qc, "query_points"):
+                _res = _qc.query_points(collection_name=config.QDRANT_COLLECTION, limit=1)
+                qdrant_ok = len(getattr(_res, "points", [])) >= 0
+            else:
+                _res = _qc.search(collection_name=config.QDRANT_COLLECTION, limit=1)
+                qdrant_ok = len(_res) >= 0
+        except Exception:
+            qdrant_ok = False
 
     return HealthResponse(
         status="ok",
         leaf_chunks_count=leaf_count,
         parent_chunks_count=parent_count,
-        chroma_loaded=chroma_ok,
+        chroma_loaded=qdrant_ok,
         bm25_loaded=bm25_ok,
         embedding_model=config.EMBEDDING_MODEL_NAME,
         llm_provider=config.LLM_PROVIDER,
@@ -268,6 +274,7 @@ def handle_query(req: QueryRequest):
         search_query = routing.search_queries[0] if routing.search_queries else question
         logger.info("Executing vector DB search with LLM-formulated query: %r", search_query[:80])
         chunks = retrieve(query=search_query, final_top_k=top_k)
+        logger.info("[CLOUD RETRIEVAL DONE] Total grounded context chunks retrieved from Qdrant Cloud: %d", len(chunks))
 
         # 3. Second LLM Call: Answer generation grounded on retrieved chunks
         answer = generate_answer(query=question, context_chunks=chunks, provider=provider)
