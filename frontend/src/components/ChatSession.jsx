@@ -172,7 +172,7 @@ export default function ChatSession({
                           </div>
                         ) : (
                           <>
-                            <span className="text-xs font-medium text-[#44403C] line-clamp-2 leading-tight flex-1">{thread.title}</span>
+                            <span className="text-xs font-medium text-[#44403C] line-clamp-2 leading-tight flex-1" title={thread.title}>{thread.title}</span>
                             
                             <div className="flex items-center gap-1 shrink-0">
                               <button 
@@ -360,7 +360,7 @@ export default function ChatSession({
                           </div>
                         ) : (
                           <>
-                            <span className="text-xs font-medium text-[#44403C] line-clamp-2 leading-tight flex-1">{thread.title}</span>
+                            <span className="text-xs font-medium text-[#44403C] line-clamp-2 leading-tight flex-1" title={thread.title}>{thread.title}</span>
                             
                             <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                               {/* Rename thread icon button */}
@@ -457,7 +457,7 @@ export default function ChatSession({
       <main className="flex-1 flex flex-col min-h-screen bg-transparent">
         {/* Top Conversation Title Bar */}
         <div className="w-full h-[88px] bg-white px-6 lg:px-10 py-[30px] flex items-center justify-between border-b border-orange-500/10">
-          <h1 className="text-base lg:text-lg font-bold text-[#44403C] tracking-tight truncate">
+          <h1 className="text-base lg:text-lg font-bold text-[#44403C] tracking-tight truncate" title={sessionTitle || "New Chat Session"}>
             {sessionTitle || "New Chat Session"}
           </h1>
         </div>

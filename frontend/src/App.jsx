@@ -12,6 +12,13 @@ const generateUniqueThreadId = () => {
   return 'chat-' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
 };
 
+const truncateTitle = (text, maxLength = 45) => {
+  if (!text) return "New Chat Session";
+  const trimmed = text.trim();
+  if (trimmed.length <= maxLength) return trimmed;
+  return trimmed.slice(0, maxLength).trim() + "...";
+};
+
 const DEFAULT_INITIAL_THREADS = [];
 
 async function sendQueryRequest(apiBaseUrl, question, topK) {
@@ -101,7 +108,7 @@ function ChatContainer({
 
       const newThread = {
         id: generatedId,
-        title: cleanQuery,
+        title: truncateTitle(cleanQuery),
         createdAt: Date.now(),
         messages: [userMsg]
       };
@@ -124,7 +131,7 @@ function ChatContainer({
             const isTitleDefault = t.title === "New Chat Session" || t.messages.length === 0;
             return {
               ...t,
-              title: isTitleDefault ? cleanQuery : t.title,
+              title: isTitleDefault ? truncateTitle(cleanQuery) : t.title,
               messages: [...t.messages, userMsg]
             };
           }
@@ -203,7 +210,7 @@ function ChatContainer({
 
   const handleRenameThread = (threadIdToRename, newTitle) => {
     if (!newTitle || !newTitle.trim()) return;
-    const cleanTitle = newTitle.trim();
+    const cleanTitle = truncateTitle(newTitle.trim(), 50);
     setThreads((prevThreads) =>
       prevThreads.map((t) => (t.id === threadIdToRename ? { ...t, title: cleanTitle } : t))
     );
@@ -248,7 +255,10 @@ export default function App() {
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          return parsed.map(t => ({
+            ...t,
+            title: t.title ? truncateTitle(t.title) : "New Chat Session"
+          }));
         }
       }
     } catch (err) {
@@ -344,7 +354,7 @@ export default function App() {
 
     const newThread = {
       id: newUniqueId,
-      title: cleanQuery,
+      title: truncateTitle(cleanQuery),
       createdAt: Date.now(),
       messages: [userMsg]
     };

@@ -331,7 +331,7 @@ def handle_query(req: QueryRequest):
             marker = meta.get("sub_unit_marker", "Intro/General")
 
             snippet_text = c.get("expanded_context") or c.get("document", "")
-            snippet = snippet_text[:250].replace("\n", " ").strip() + "..." if snippet_text else ""
+            snippet = snippet_text.replace("\n", " ").strip() if snippet_text else ""
 
             citations.append(
                 Citation(
