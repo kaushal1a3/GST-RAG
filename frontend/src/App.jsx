@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, useNavigate, useLocation, useParams, Navigate } from 'react-router-dom';
+import { Routes, Route, useNavigate, useParams, Navigate } from 'react-router-dom';
 import LandingPage from './components/LandingPage';
 import ChatSession from './components/ChatSession';
 import AboutModal from './components/AboutModal';
@@ -67,22 +67,14 @@ function ChatContainer({
   topK, 
   setTopK, 
   apiHealth, 
-  onOpenAbout 
+  onOpenAbout,
+  loadingThreadId,
+  setLoadingThreadId,
+  statusMessage,
+  setStatusMessage
 }) {
   const navigate = useNavigate();
-  const location = useLocation();
   const { threadId } = useParams();
-
-  const [loading, setLoading] = useState(false);
-  const [statusMessage, setStatusMessage] = useState("");
-
-  useEffect(() => {
-    if (location.state?.initialQuery) {
-      const initialQuery = location.state.initialQuery;
-      navigate(location.pathname, { replace: true, state: {} });
-      handleSendMessage(initialQuery);
-    }
-  }, [location.state?.initialQuery]);
 
   const isNewSession = !threadId;
 
@@ -96,8 +88,10 @@ function ChatContainer({
     ? { id: "new", title: "New Chat Session", messages: [] }
     : (threads.find(t => t.id === activeId) || { id: activeId, title: "New Chat Session", messages: [] });
 
+  const loading = loadingThreadId === activeId;
+
   const handleSendMessage = async (queryText) => {
-    if (!queryText || !queryText.trim() || loading) return;
+    if (!queryText || !queryText.trim() || loadingThreadId) return;
     const cleanQuery = queryText.trim();
     const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -149,7 +143,7 @@ function ChatContainer({
       );
     }
 
-    setLoading(true);
+    setLoadingThreadId(targetId);
     setStatusMessage("Analyzing request with LLM Query Router...");
 
     try {
@@ -195,7 +189,7 @@ function ChatContainer({
         })
       );
     } finally {
-      setLoading(false);
+      setLoadingThreadId(null);
       setStatusMessage("");
     }
   };
@@ -279,6 +273,8 @@ export default function App() {
   const [topK, setTopK] = useState(5);
   const [apiHealth, setApiHealth] = useState(null);
   const [showAboutModal, setShowAboutModal] = useState(false);
+  const [loadingThreadId, setLoadingThreadId] = useState(null);
+  const [statusMessage, setStatusMessage] = useState("");
 
   const [apiBaseUrl] = useState(() => {
     // In production (separate Vercel deployments), VITE_API_BASE_URL must point to
@@ -352,7 +348,73 @@ export default function App() {
     }
 
     const newUniqueId = generateUniqueThreadId();
-    navigate(`/chat/${newUniqueId}`, { state: { initialQuery: cleanQuery } });
+    const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    const userMsg = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: cleanQuery,
+      timestamp: currentTime
+    };
+
+    const newThread = {
+      id: newUniqueId,
+      title: truncateTitle(cleanQuery),
+      createdAt: Date.now(),
+      messages: [userMsg]
+    };
+
+    setThreads(prev => [newThread, ...prev]);
+    setLoadingThreadId(newUniqueId);
+    setStatusMessage("Analyzing request with LLM Query Router...");
+    navigate(`/chat/${newUniqueId}`);
+
+    // Fetch backend RAG answer via sendQueryRequest
+    sendQueryRequest(apiBaseUrl, cleanQuery, topK)
+      .then(data => {
+        const aiMsg = {
+          id: `ai-${Date.now()}`,
+          role: "assistant",
+          content: data.answer,
+          citations: data.citations || [],
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setThreads(prevThreads => 
+          prevThreads.map(t => {
+            if (t.id === newUniqueId) {
+              return {
+                ...t,
+                messages: [...t.messages, aiMsg]
+              };
+            }
+            return t;
+          })
+        );
+      })
+      .catch(err => {
+        const errorMsg = {
+          id: `err-${Date.now()}`,
+          role: "assistant",
+          content: `⚠️ **Error processing request**: ${err.message}`,
+          citations: [],
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setThreads(prevThreads => 
+          prevThreads.map(t => {
+            if (t.id === newUniqueId) {
+              return {
+                ...t,
+                messages: [...t.messages, errorMsg]
+              };
+            }
+            return t;
+          })
+        );
+      })
+      .finally(() => {
+        setLoadingThreadId(null);
+        setStatusMessage("");
+      });
   };
 
   return (
@@ -383,6 +445,10 @@ export default function App() {
               setTopK={setTopK}
               apiHealth={apiHealth}
               onOpenAbout={() => setShowAboutModal(true)}
+              loadingThreadId={loadingThreadId}
+              setLoadingThreadId={setLoadingThreadId}
+              statusMessage={statusMessage}
+              setStatusMessage={setStatusMessage}
             />
           } 
         />
@@ -399,6 +465,10 @@ export default function App() {
               setTopK={setTopK}
               apiHealth={apiHealth}
               onOpenAbout={() => setShowAboutModal(true)}
+              loadingThreadId={loadingThreadId}
+              setLoadingThreadId={setLoadingThreadId}
+              statusMessage={statusMessage}
+              setStatusMessage={setStatusMessage}
             />
           } 
         />
