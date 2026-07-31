@@ -36,6 +36,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 import config
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -72,15 +73,11 @@ app.add_middleware(
 )
 
 
-@app.middleware("http")
-async def fix_vercel_path_middleware(request: Request, call_next):
-    """Normalize Vercel serverless path rewrites so all route handlers match."""
-    path = request.url.path
-    if path.startswith("/api/index"):
-        request.scope["path"] = path[10:] or "/"
-    elif path.startswith("/api"):
-        request.scope["path"] = path[4:] or "/"
-    return await call_next(request)
+@app.options("/{full_path:path}")
+def options_catch_all(full_path: str):
+    """Explicit catch-all OPTIONS handler to ensure CORS preflight requests succeed with 200 OK."""
+    return JSONResponse(status_code=200, content={"status": "ok"})
+
 
 
 
