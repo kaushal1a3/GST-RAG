@@ -262,26 +262,31 @@ export default function App() {
   const [showAboutModal, setShowAboutModal] = useState(false);
 
   const [apiBaseUrl] = useState(() => {
+    // In production (separate Vercel deployments), VITE_API_BASE_URL must point to
+    // the backend deployment URL, e.g. https://gst-rag-backend-xxxx.vercel.app
+    // Never fall back to window.location.origin — that's the frontend URL with no API.
+    const envUrl = import.meta.env?.VITE_API_BASE_URL?.trim();
+    if (envUrl) {
+      return envUrl.replace(/\/+$/, '');
+    }
+
+    // Local development fallback
     const isLocal = typeof window !== 'undefined' && (
       window.location.hostname === 'localhost' ||
       window.location.hostname === '127.0.0.1' ||
-      window.location.hostname.startsWith('192.168.') ||
-      window.location.port === '8000' ||
-      window.location.port === '5173'
+      window.location.hostname.startsWith('192.168.')
     );
-
     if (isLocal) {
-      if (import.meta.env && import.meta.env.VITE_API_BASE_URL && (import.meta.env.VITE_API_BASE_URL.includes('localhost') || import.meta.env.VITE_API_BASE_URL.includes('127.0.0.1'))) {
-        return import.meta.env.VITE_API_BASE_URL.replace(/\/+$/, '');
-      }
       return 'http://127.0.0.1:8000';
     }
 
-    if (import.meta.env && import.meta.env.VITE_API_BASE_URL && import.meta.env.VITE_API_BASE_URL.trim()) {
-      return import.meta.env.VITE_API_BASE_URL.replace(/\/+$/, '');
-    }
-
-    return typeof window !== 'undefined' ? window.location.origin : 'http://127.0.0.1:8000';
+    // Production with no env var set — surface a clear warning in the console
+    console.error(
+      '[GST RAG] VITE_API_BASE_URL is not set. ' +
+      'Set it in your Vercel frontend project → Settings → Environment Variables ' +
+      'to point to your backend deployment URL.'
+    );
+    return '';
   });
 
   // Persist threads to localStorage
