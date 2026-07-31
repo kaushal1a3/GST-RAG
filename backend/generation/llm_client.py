@@ -150,14 +150,9 @@ def _call_mock(query: str, context_chunks: list[dict[str, Any]]) -> str:
     if not context_chunks:
         return "The provided legal context does not contain information to answer this question."
 
-    # Relevance check: if top chunk has low rerank score (cross-encoder score < -1.0)
-    # and no explicit section citation boost, declare answer not in context
-    top = context_chunks[0]
-    rerank_score = top.get("rerank_score", 0.0)
-    is_cited = top.get("citation_boosted", False)
-
-    if not is_cited and rerank_score < 0.0:
-        return "The provided legal context does not contain information to answer this question."
+    # Note: rerank_score threshold deliberately removed.
+    # Cross-encoder scores are NOT calibrated — a negative score does not mean
+    # the chunk is irrelevant. When used as a fallback, always try to answer.
 
     lines = [f"Based on the provided Indian GST legal context:\n"]
     found_any = False
@@ -176,9 +171,13 @@ def _call_mock(query: str, context_chunks: list[dict[str, Any]]) -> str:
         # Extract first 2 meaningful sentences
         sentences = [s.strip() for s in text.replace("\n", " ").split(".") if len(s.strip()) > 15]
         excerpt = ". ".join(sentences[:2]) if sentences else text[:250]
-
-        citation = f"[{law}, {unit_num}, {marker}]"
-        lines.append(f"• According to {raw_unit}: {excerpt}. {citation}")
+        
+        header = f"--- CHUNK {index} ---"
+        # Use unit_num as fallback when raw_unit is missing (e.g. Qdrant-only deployment)
+        display_unit = raw_unit or (f"Section/Rule {unit_num}" if unit_num else "Provision")
+        citation_ref = f"[{law_title}, {display_unit}, {sub_marker}]"
+        
+        lines.append(f"• According to {display_unit}: {excerpt}. {citation_ref}")
         found_any = True
 
     if not found_any:

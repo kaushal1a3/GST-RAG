@@ -51,9 +51,12 @@ def format_context_chunk(index: int, chunk: dict[str, Any]) -> str:
     text = chunk.get("expanded_context") or chunk.get("document", "")
 
     header = f"--- CHUNK {index} ---"
-    citation_ref = f"[{law_title}, {raw_unit}, {sub_marker}]"
+    # Use unit_num as fallback when raw_unit is missing (e.g. Qdrant-only deployment
+    # where raw_unit was not stored in the vector payload)
+    display_unit = raw_unit or (f"Section/Rule {unit_num}" if unit_num else "Provision")
+    citation_ref = f"[{law_title}, {display_unit}, {sub_marker}]"
     
-    return f"{header}\nCitation Tag: {citation_ref}\nLaw: {law_title}\nUnit: {raw_unit} (Unit Number: {unit_num})\nSub-unit Marker: {sub_marker}\n\nContent:\n{text}\n"
+    return f"{header}\nCitation Tag: {citation_ref}\nLaw: {law_title}\nUnit: {display_unit} (Unit Number: {unit_num})\nSub-unit Marker: {sub_marker}\n\nContent:\n{text}\n"
 
 
 def build_user_prompt(query: str, context_chunks: list[dict[str, Any]]) -> str:

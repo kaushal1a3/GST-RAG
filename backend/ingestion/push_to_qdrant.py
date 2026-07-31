@@ -112,10 +112,14 @@ def main():
     for idx, (chunk, vector) in enumerate(zip(leaf_chunks, embeddings)):
         point_id = idx + 1  # integer ID
         payload = {
-            "chunk_id": chunk.get("chunk_id", f"leaf-{idx}"),
+            "chunk_id": chunk.get("id", chunk.get("chunk_id", f"leaf-{idx}")),
             "text": chunk.get("text", ""),
             "law_title": chunk.get("law_title", ""),
             "unit_number": chunk.get("unit_number", ""),
+            "raw_unit": chunk.get("raw_unit", ""),
+            "sub_unit_marker": chunk.get("sub_unit_marker", ""),
+            "chapter": chunk.get("chapter", ""),
+            "unit_title": chunk.get("unit_title", ""),
             "doc_type": chunk.get("doc_type", "act"),
             "parent_id": chunk.get("parent_id", "")
         }
