@@ -14,6 +14,56 @@ const generateUniqueThreadId = () => {
 
 const DEFAULT_INITIAL_THREADS = [];
 
+async function sendQueryRequest(apiBaseUrl, question, topK) {
+  const payload = JSON.stringify({
+    question: question,
+    top_k: parseInt(topK, 10)
+  });
+  const headers = { "Content-Type": "application/json" };
+
+  let res = null;
+  // Attempt 1: POST to /query
+  try {
+    res = await fetch(`${apiBaseUrl}/query`, { method: "POST", headers, body: payload });
+  } catch (e) {
+    res = null;
+  }
+
+  // Attempt 2: Fallback POST to /api/query
+  if (!res || !res.ok) {
+    try {
+      const resFallback = await fetch(`${apiBaseUrl}/api/query`, { method: "POST", headers, body: payload });
+      if (resFallback && resFallback.ok) {
+        res = resFallback;
+      }
+    } catch (e) {
+      // Keep initial res if fallback fails
+    }
+  }
+
+  if (!res) {
+    throw new Error("Unable to connect to backend server. Please check if the FastAPI backend is running.");
+  }
+
+  const rawText = await res.text();
+  if (!rawText || !rawText.trim()) {
+    throw new Error(`Server returned HTTP ${res.status} with an empty response.`);
+  }
+
+  let data;
+  try {
+    data = JSON.parse(rawText);
+  } catch (e) {
+    throw new Error(`Server returned invalid non-JSON output (HTTP ${res.status}): ${rawText.substring(0, 100)}`);
+  }
+
+  if (!res.ok) {
+    throw new Error(data.detail || data.message || `Server returned error ${res.status}`);
+  }
+
+  return data;
+}
+
 function ChatContainer({ 
   threads, 
   setThreads, 
@@ -98,21 +148,7 @@ function ChatContainer({
     setStatusMessage("Analyzing request with LLM Query Router...");
 
     try {
-      const res = await fetch(`${apiBaseUrl}/query`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: cleanQuery,
-          top_k: parseInt(topK, 10)
-        })
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({ detail: "API Server Error" }));
-        throw new Error(errData.detail || `Server returned ${res.status}`);
-      }
-
-      const data = await res.json();
+      const data = await sendQueryRequest(apiBaseUrl, cleanQuery, topK);
 
       const aiMsg = {
         id: `ai-${Date.now()}`,
@@ -137,7 +173,7 @@ function ChatContainer({
       const errorMsg = {
         id: `err-${Date.now()}`,
         role: "assistant",
-        content: `⚠️ **Error processing request**: ${err.message}. Please verify the FastAPI backend is running.`,
+        content: `⚠️ **Error processing request**: ${err.message}`,
         citations: [],
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
@@ -323,56 +359,48 @@ export default function App() {
     setThreads(prev => [newThread, ...prev]);
     navigate(`/chat/${newUniqueId}`);
 
-    // Fetch backend RAG answer
-    fetch(`${apiBaseUrl}/query`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        question: cleanQuery,
-        top_k: parseInt(topK, 10)
+    // Fetch backend RAG answer via sendQueryRequest
+    sendQueryRequest(apiBaseUrl, cleanQuery, topK)
+      .then(data => {
+        const aiMsg = {
+          id: `ai-${Date.now()}`,
+          role: "assistant",
+          content: data.answer,
+          citations: data.citations || [],
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setThreads(prevThreads => 
+          prevThreads.map(t => {
+            if (t.id === newUniqueId) {
+              return {
+                ...t,
+                messages: [...t.messages, aiMsg]
+              };
+            }
+            return t;
+          })
+        );
       })
-    })
-    .then(res => res.json())
-    .then(data => {
-      const aiMsg = {
-        id: `ai-${Date.now()}`,
-        role: "assistant",
-        content: data.answer,
-        citations: data.citations || [],
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      setThreads(prevThreads => 
-        prevThreads.map(t => {
-          if (t.id === newUniqueId) {
-            return {
-              ...t,
-              messages: [...t.messages, aiMsg]
-            };
-          }
-          return t;
-        })
-      );
-    })
-    .catch(err => {
-      const errorMsg = {
-        id: `err-${Date.now()}`,
-        role: "assistant",
-        content: `⚠️ **Error processing request**: ${err.message}.`,
-        citations: [],
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      setThreads(prevThreads => 
-        prevThreads.map(t => {
-          if (t.id === newUniqueId) {
-            return {
-              ...t,
-              messages: [...t.messages, errorMsg]
-            };
-          }
-          return t;
-        })
-      );
-    });
+      .catch(err => {
+        const errorMsg = {
+          id: `err-${Date.now()}`,
+          role: "assistant",
+          content: `⚠️ **Error processing request**: ${err.message}`,
+          citations: [],
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setThreads(prevThreads => 
+          prevThreads.map(t => {
+            if (t.id === newUniqueId) {
+              return {
+                ...t,
+                messages: [...t.messages, errorMsg]
+              };
+            }
+            return t;
+          })
+        );
+      });
   };
 
   return (

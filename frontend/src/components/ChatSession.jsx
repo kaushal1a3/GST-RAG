@@ -552,15 +552,15 @@ export default function ChatSession({
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input Bar Area - Solid Background (No Glass Effect) */}
-          <div className="sticky bottom-0 w-full px-6 py-4 flex items-center justify-center bg-white border-t border-orange-500/10 shadow-sm z-20">
+          {/* Input Bar Area - Outer container transparent, fill color strictly inside input element */}
+          <div className="sticky bottom-0 w-full px-6 py-4 flex items-center justify-center bg-transparent z-20">
             <form onSubmit={handleSubmit} className="relative w-full max-w-[675px]">
               <input 
                 type="text" 
                 value={inputQuery}
                 onChange={(e) => setInputQuery(e.target.value)}
                 placeholder="Ask follow-up query on GST Acts, Rules..." 
-                className="w-full h-[76px] bg-[#FFFBF5] border border-orange-500/25 rounded-2xl px-6 pr-16 text-sm text-[#292524] placeholder-[#A6A09B] focus:outline-none focus:border-orange-500 shadow-sm transition-all font-medium"
+                className="w-full h-[76px] bg-[#FFFBF5] border border-orange-500/25 rounded-2xl px-6 pr-16 text-sm text-[#292524] placeholder-[#A6A09B] focus:outline-none focus:border-orange-500 shadow-md transition-all font-medium"
               />
               
               <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-3">
