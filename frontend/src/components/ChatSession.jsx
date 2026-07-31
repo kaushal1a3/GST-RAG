@@ -49,10 +49,18 @@ export default function ChatSession({
   };
 
   const messagesEndRef = useRef(null);
+  const prevThreadIdRef = useRef(activeThreadId);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading]);
+    if (prevThreadIdRef.current !== activeThreadId) {
+      prevThreadIdRef.current = activeThreadId;
+      // Thread reopened or switched: instant jump to bottom without smooth scrolling from top
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+    } else {
+      // New message added to current session: smooth scroll
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, loading, activeThreadId]);
 
   const handleSubmit = (e) => {
     e?.preventDefault();
@@ -471,57 +479,61 @@ export default function ChatSession({
                 </p>
               </div>
             ) : (
-              messages.map((msg) => (
-                <React.Fragment key={msg.id}>
-                  {msg.role === 'user' ? (
-                    /* User Query Bubble */
-                    <div className="flex flex-col items-end gap-2 w-full animate-fade-in">
-                      <div className="p-4 bg-orange-500/15 border border-orange-500/15 rounded-2xl shadow-sm max-w-[80%]">
-                        <p className="text-sm font-regular text-[#1C1917]">{msg.content}</p>
-                      </div>
-                      <div className="flex items-center gap-2 px-1">
-                        <span className="text-[10px] font-semibold uppercase tracking-[0.05em] text-[#79716B]">{msg.timestamp}</span>
-                        <svg className="w-3.5 h-3.5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                        </svg>
-                      </div>
-                    </div>
-                  ) : (
-                    /* Assistant RAG Response */
-                    <div className="flex items-start gap-4 w-full animate-fade-in">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-[#F54900] to-[#FE9A00] flex items-center justify-center text-white shrink-0 shadow-md">
-                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                        </svg>
-                      </div>
-                      <div className="flex-1 flex flex-col gap-4">
-                        <div className="bg-white border border-orange-500/15 p-6 rounded-2xl flex flex-col gap-4 shadow-sm">
-                          <div 
-                            className="prose prose-stone prose-sm max-w-none text-sm text-[#292524] leading-relaxed"
-                            dangerouslySetInnerHTML={{ __html: marked.parse(msg.content || '') }}
-                          />
+              messages.map((msg, index) => {
+                const isRecent = index >= messages.length - 2;
+                const animClass = isRecent ? 'animate-fade-in' : '';
+                return (
+                  <React.Fragment key={msg.id}>
+                    {msg.role === 'user' ? (
+                      /* User Query Bubble */
+                      <div className={`flex flex-col items-end gap-2 w-full ${animClass}`}>
+                        <div className="p-4 bg-orange-500/15 border border-orange-500/15 rounded-2xl shadow-sm max-w-[80%]">
+                          <p className="text-sm font-regular text-[#1C1917]">{msg.content}</p>
                         </div>
-
-                        {/* Citations Pill */}
-                        {msg.citations && msg.citations.length > 0 && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-semibold text-orange-600">
-                              {msg.citations.length} Citation{msg.citations.length > 1 ? 's' : ''} &amp; Sources found
-                            </span>
-                            <svg className="w-3.5 h-3.5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                          </div>
-                        )}
-
                         <div className="flex items-center gap-2 px-1">
                           <span className="text-[10px] font-semibold uppercase tracking-[0.05em] text-[#79716B]">{msg.timestamp}</span>
+                          <svg className="w-3.5 h-3.5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                          </svg>
                         </div>
                       </div>
-                    </div>
-                  )}
-                </React.Fragment>
-              ))
+                    ) : (
+                      /* Assistant RAG Response */
+                      <div className={`flex items-start gap-4 w-full ${animClass}`}>
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-[#F54900] to-[#FE9A00] flex items-center justify-center text-white shrink-0 shadow-md">
+                          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                          </svg>
+                        </div>
+                        <div className="flex-1 flex flex-col gap-4">
+                          <div className="bg-white border border-orange-500/15 p-6 rounded-2xl flex flex-col gap-4 shadow-sm">
+                            <div 
+                              className="prose prose-stone prose-sm max-w-none text-sm text-[#292524] leading-relaxed"
+                              dangerouslySetInnerHTML={{ __html: marked.parse(msg.content || '') }}
+                            />
+                          </div>
+
+                          {/* Citations Pill */}
+                          {msg.citations && msg.citations.length > 0 && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold text-orange-600">
+                                {msg.citations.length} Citation{msg.citations.length > 1 ? 's' : ''} &amp; Sources found
+                              </span>
+                              <svg className="w-3.5 h-3.5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                              </svg>
+                            </div>
+                          )}
+
+                          <div className="flex items-center gap-2 px-1">
+                            <span className="text-[10px] font-semibold uppercase tracking-[0.05em] text-[#79716B]">{msg.timestamp}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </React.Fragment>
+                );
+              })
             )}
 
             {loading && (
@@ -540,15 +552,15 @@ export default function ChatSession({
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input Bar Area - Filled Warm Background */}
-          <div className="sticky bottom-0 w-full px-6 py-4 flex items-center justify-center bg-transparent">
+          {/* Input Bar Area - Solid Background (No Glass Effect) */}
+          <div className="sticky bottom-0 w-full px-6 py-4 flex items-center justify-center bg-white border-t border-orange-500/10 shadow-sm z-20">
             <form onSubmit={handleSubmit} className="relative w-full max-w-[675px]">
               <input 
                 type="text" 
                 value={inputQuery}
                 onChange={(e) => setInputQuery(e.target.value)}
                 placeholder="Ask follow-up query on GST Acts, Rules..." 
-                className="w-full h-[84px] bg-[#FFFBF5] border border-orange-500/25 rounded-2xl px-6 pr-16 text-sm text-[#292524] placeholder-[#A6A09B] focus:outline-none focus:border-orange-500 shadow-md transition-all font-medium"
+                className="w-full h-[76px] bg-[#FFFBF5] border border-orange-500/25 rounded-2xl px-6 pr-16 text-sm text-[#292524] placeholder-[#A6A09B] focus:outline-none focus:border-orange-500 shadow-sm transition-all font-medium"
               />
               
               <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-3">
