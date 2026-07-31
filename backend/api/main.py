@@ -78,8 +78,10 @@ def extract_path_from_header_value(val: bytes) -> str | None:
 
 class VercelPathMiddleware:
     """
-    ASGI middleware to restore original request paths under Vercel proxying.
-    Guarantees POST requests routed to /api/index.py or /api/index map to /query.
+    ASGI middleware to restore the original request path from Vercel's proxy headers.
+    When Vercel rewrites `/(.*)` to `/api/index`, the request path inside ASGI is changed to
+    `/api/index`, which breaks FastAPI routing. This middleware extracts the original path
+    from Vercel-specific request headers and overrides `scope["path"]` before routing.
     """
     def __init__(self, app):
         self.app = app
@@ -90,8 +92,9 @@ class VercelPathMiddleware:
             method = scope.get("method", "GET")
             headers = dict(scope.get("headers", []))
 
+            # Check Vercel-specific headers to find the original matched route path
             original_path = None
-            for header_name in [b"x-forwarded-url", b"x-original-url", b"x-matched-path", b"x-vercel-matched-path"]:
+            for header_name in [b"x-matched-path", b"x-vercel-matched-path", b"x-original-url", b"x-forwarded-url"]:
                 if header_name in headers:
                     path = extract_path_from_header_value(headers[header_name])
                     if path and not path.endswith(".py") and not path.endswith("/index") and path not in ["/api", "/api/"]:
@@ -101,7 +104,7 @@ class VercelPathMiddleware:
                         break
 
             if original_path:
-                logger.info("Rewriting ASGI path from %r to %r based on headers", current_path, original_path)
+                logger.info("Rewriting ASGI path from %r to %r based on headers", scope.get("path"), original_path)
                 scope["path"] = original_path
             elif current_path in ["/api/index", "/api/index.py", "/api/index/", "/api", "/api/"]:
                 if method == "POST":
@@ -112,6 +115,7 @@ class VercelPathMiddleware:
                     scope["path"] = "/health"
 
         await self.app(scope, receive, send)
+
 
 
 # Add VercelPathMiddleware to handle routing correctly under Vercel's rewrites
