@@ -92,27 +92,41 @@ class VercelPathMiddleware:
             method = scope.get("method", "GET")
             headers = dict(scope.get("headers", []))
 
-            # Check Vercel-specific headers to find the original matched route path
             original_path = None
-            for header_name in [b"x-matched-path", b"x-vercel-matched-path", b"x-original-url", b"x-forwarded-url"]:
-                if header_name in headers:
-                    path = extract_path_from_header_value(headers[header_name])
-                    if path and not path.endswith(".py") and not path.endswith("/index") and path not in ["/api", "/api/"]:
-                        if not path.startswith("/"):
-                            path = "/" + path
-                        original_path = path
-                        break
 
-            if original_path:
-                logger.info("Rewriting ASGI path from %r to %r based on headers", scope.get("path"), original_path)
-                scope["path"] = original_path
-            elif current_path in ["/api/index", "/api/index.py", "/api/index/", "/api", "/api/"]:
+            # Priority 1: x-original-path is explicitly injected by our vercel.json routes
+            # and is always the correct original path.
+            if b"x-original-path" in headers:
+                path = extract_path_from_header_value(headers[b"x-original-path"])
+                if path:
+                    if not path.startswith("/"):
+                        path = "/" + path
+                    original_path = path
+                    logger.info("Restoring ASGI path from x-original-path: %r -> %r", current_path, original_path)
+
+            # Priority 2: Other Vercel headers (x-matched-path etc.) as fallback
+            if not original_path:
+                for header_name in [b"x-matched-path", b"x-vercel-matched-path", b"x-original-url", b"x-forwarded-url"]:
+                    if header_name in headers:
+                        path = extract_path_from_header_value(headers[header_name])
+                        if path and not path.endswith(".py") and not path.endswith("/index") and path not in ["/api", "/api/"]:
+                            if not path.startswith("/"):
+                                path = "/" + path
+                            original_path = path
+                            logger.info("Rewriting ASGI path from %r to %r via header %s", current_path, original_path, header_name)
+                            break
+
+            # Priority 3: Method-based fallback when path is a Vercel rewrite stub
+            if not original_path and current_path in ["/api/index", "/api/index.py", "/api/index/", "/api", "/api/"]:
                 if method == "POST":
                     logger.info("Auto-mapping POST %r to /query", current_path)
-                    scope["path"] = "/query"
+                    original_path = "/query"
                 elif method == "GET":
                     logger.info("Auto-mapping GET %r to /health", current_path)
-                    scope["path"] = "/health"
+                    original_path = "/health"
+
+            if original_path:
+                scope["path"] = original_path
 
         await self.app(scope, receive, send)
 
