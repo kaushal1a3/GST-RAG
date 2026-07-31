@@ -14,7 +14,7 @@
         "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
         "Access-Control-Max-Age": "86400"
       },
-      "dest": "/backend/api/index"
+      "dest": "/api"
     }
   ]
 }
