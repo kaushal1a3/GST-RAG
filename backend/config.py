@@ -40,9 +40,12 @@ CHROMA_DB_DIR = PROCESSED_DIR / "chroma_db"
 # ---------------------------------------------------------------------------
 # Embedding model
 # ---------------------------------------------------------------------------
-EMBEDDING_MODEL_NAME: str = "BAAI/bge-small-en-v1.5"
+EMBEDDING_MODEL_NAME: str = "BAAI/bge-small-en-v1.5"   # kept for local FastEmbed fallback
 EMBEDDING_BATCH_SIZE: int = 128
-EMBEDDING_DIM: int = 384  # bge-small output dimension
+EMBEDDING_DIM: int = int(os.getenv("EMBEDDING_DIM", "768"))   # 768 for Google text-embedding-004
+
+# Google embedding model (no local download needed – uses GEMINI_API_KEY)
+GOOGLE_EMBEDDING_MODEL: str = os.getenv("GOOGLE_EMBEDDING_MODEL", "models/text-embedding-004")
 
 # ---------------------------------------------------------------------------
 # Vector Store Settings (ChromaDB local vs Qdrant Cloud)

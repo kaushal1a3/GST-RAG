@@ -47,33 +47,68 @@ CANONICAL_LAW_TITLES: dict[str, list[str]] = {
 
 
 class QueryEmbedder:
-    """Wrapper supporting FastEmbed (lightweight ONNX) and SentenceTransformers (PyTorch)."""
+    """Embed queries using Google text-embedding-004 (primary, API-based, no download)
+    or FastEmbed ONNX (fallback for local dev without a Gemini API key)."""
+
     def __init__(self, model_name: str):
         self.model_name = model_name
         self.mode = None
         self._model = None
 
-        try:
-            from fastembed import TextEmbedding  # type: ignore
-            import os as _os
-            # /tmp is the only writable directory on Vercel Lambda (cold starts need to download model)
-            _cache = _os.environ.get("FASTEMBED_CACHE_DIR", "/tmp/fastembed_cache")
-            logger.info("Initializing FastEmbed (ONNX) model for query embedding: %s (cache=%s)", model_name, _cache)
-            self._model = TextEmbedding(model_name=model_name, cache_dir=_cache)
-            self.mode = "fastembed"
-        except Exception as err_fe:
-            logger.debug("FastEmbed unavailable (%s); trying SentenceTransformers...", err_fe)
+        # --- Primary: Google Generative AI embedding (no local download required) ---
+        api_key = config.GEMINI_API_KEY
+        if api_key:
             try:
-                from sentence_transformers import SentenceTransformer  # type: ignore
-                logger.info("Initializing SentenceTransformer (PyTorch) model: %s", model_name)
-                self._model = SentenceTransformer(model_name)
-                self.mode = "sentence_transformers"
-            except Exception as err_st:
-                logger.error("Neither fastembed nor sentence_transformers available: %s", err_st)
-                raise RuntimeError("No embedding library available. Install fastembed or sentence-transformers.") from err_st
+                import google.generativeai as genai  # type: ignore
+                genai.configure(api_key=api_key)
+                # Verify the model is accessible by making a tiny test call
+                test = genai.embed_content(
+                    model=config.GOOGLE_EMBEDDING_MODEL,
+                    content="test",
+                    task_type="retrieval_query",
+                )
+                if test and test.get("embedding"):
+                    self.mode = "google"
+                    logger.info(
+                        "Using Google embedding model: %s (dim=%d)",
+                        config.GOOGLE_EMBEDDING_MODEL, len(test["embedding"]),
+                    )
+            except Exception as err_g:
+                logger.warning("Google embedding unavailable (%s); trying FastEmbed...", err_g)
+
+        # --- Fallback: FastEmbed ONNX (local dev only) ---
+        if self.mode is None:
+            try:
+                from fastembed import TextEmbedding  # type: ignore
+                import os as _os
+                _cache = _os.environ.get("FASTEMBED_CACHE_DIR", "/tmp/fastembed_cache")
+                logger.info(
+                    "Falling back to FastEmbed ONNX model: %s (cache=%s)", model_name, _cache
+                )
+                self._model = TextEmbedding(model_name=model_name, cache_dir=_cache)
+                self.mode = "fastembed"
+            except Exception as err_fe:
+                logger.debug("FastEmbed unavailable (%s); trying SentenceTransformers...", err_fe)
+                try:
+                    from sentence_transformers import SentenceTransformer  # type: ignore
+                    logger.info("Using SentenceTransformer model: %s", model_name)
+                    self._model = SentenceTransformer(model_name)
+                    self.mode = "sentence_transformers"
+                except Exception as err_st:
+                    raise RuntimeError(
+                        "No embedding library available. Set GEMINI_API_KEY or install fastembed."
+                    ) from err_st
 
     def encode(self, query: str) -> list[float]:
-        if self.mode == "fastembed":
+        if self.mode == "google":
+            import google.generativeai as genai  # type: ignore
+            result = genai.embed_content(
+                model=config.GOOGLE_EMBEDDING_MODEL,
+                content=query,
+                task_type="retrieval_query",
+            )
+            return result["embedding"]
+        elif self.mode == "fastembed":
             generator = self._model.embed([query])
             vec = list(generator)[0]
             return vec.tolist() if hasattr(vec, "tolist") else list(vec)

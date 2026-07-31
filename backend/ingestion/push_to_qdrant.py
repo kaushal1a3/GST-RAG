@@ -72,36 +72,55 @@ def main():
         leaf_chunks = json.load(f)
     print(f"2. Loaded {len(leaf_chunks)} leaf chunks from processed dataset.")
 
-    # Load or compute embeddings
-    embeddings = None
-    if config.EMBEDDINGS_CACHE_FILE.exists():
-        print(f"3. Loading cached numpy embeddings from {config.EMBEDDINGS_CACHE_FILE}...")
-        data = np.load(config.EMBEDDINGS_CACHE_FILE)
-        embeddings = data["embeddings"]
-    else:
-        print("3. Computing embeddings using BAAI/bge-small-en-v1.5 model...")
-        from sentence_transformers import SentenceTransformer
-        model = SentenceTransformer(config.EMBEDDING_MODEL_NAME)
-        texts = [c.get("text", "") for c in leaf_chunks]
-        embeddings = model.encode(texts, batch_size=config.EMBEDDING_BATCH_SIZE, show_progress_bar=True, normalize_embeddings=True)
+    # Compute embeddings via Google text-embedding-004 (no local model download needed)
+    google_api_key = os.getenv("GEMINI_API_KEY") or config.GEMINI_API_KEY
+    if not google_api_key:
+        print("\n[ERROR] GEMINI_API_KEY must be set to generate embeddings via Google API.")
+        sys.exit(1)
+
+    import google.generativeai as genai  # type: ignore
+    genai.configure(api_key=google_api_key)
+
+    google_embed_model = os.getenv("GOOGLE_EMBEDDING_MODEL", config.GOOGLE_EMBEDDING_MODEL)
+    print(f"3. Computing embeddings via Google API model: {google_embed_model}")
+    print(f"   This will make {len(leaf_chunks)} API calls (batched 100 at a time)...")
+
+    texts = [c.get("text", "") for c in leaf_chunks]
+    embeddings_list: list[list[float]] = []
+
+    for i in range(0, len(texts), 100):
+        batch = texts[i : i + 100]
+        result = genai.embed_content(
+            model=google_embed_model,
+            content=batch,
+            task_type="retrieval_document",
+        )
+        embeddings_list.extend(result["embedding"])
+        print(f"   Embedded {min(i + 100, len(texts))}/{len(texts)} chunks...")
+
+    import numpy as np_local
+    embeddings = np_local.array(embeddings_list, dtype="float32")
+    actual_dim = embeddings.shape[1]
+    print(f"   Embedding dim: {actual_dim}")
 
     if len(embeddings) != len(leaf_chunks):
         print(f"[ERROR] Mismatch: {len(leaf_chunks)} chunks vs {len(embeddings)} embeddings.")
         sys.exit(1)
 
-    # Create/re-create Qdrant collection using modern Qdrant client API
-    print(f"\n4. Preparing Qdrant collection '{collection_name}' (dim=384, Distance=COSINE)...")
+    # Create/re-create Qdrant collection using the actual embedding dimension
+    print(f"\n4. Preparing Qdrant collection '{collection_name}' (dim={actual_dim}, Distance=COSINE)...")
     try:
         if client.collection_exists(collection_name):
             client.delete_collection(collection_name)
-        
+
         client.create_collection(
             collection_name=collection_name,
-            vectors_config=VectorParams(size=config.EMBEDDING_DIM, distance=Distance.COSINE)
+            vectors_config=VectorParams(size=actual_dim, distance=Distance.COSINE)
         )
-        print(f"   Created collection '{collection_name}' successfully.")
+        print(f"   Created collection '{collection_name}' (dim={actual_dim}) successfully.")
     except Exception as exc:
         print(f"   Warning preparing collection: {exc}. Attempting upload...")
+
 
     # Upload points in batches of 100
     batch_size = 100
