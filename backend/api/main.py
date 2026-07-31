@@ -22,6 +22,7 @@ import io
 import json
 import logging
 import sys
+import urllib.parse
 from pathlib import Path
 from typing import Any, Optional
 
@@ -62,6 +63,53 @@ app = FastAPI(
 )
 
 import os
+
+
+def extract_path_from_header_value(val: bytes) -> str | None:
+    try:
+        decoded = val.decode("utf-8")
+        if decoded.startswith("http://") or decoded.startswith("https://"):
+            parsed = urllib.parse.urlparse(decoded)
+            return parsed.path
+        return decoded
+    except Exception:
+        return None
+
+
+class VercelPathMiddleware:
+    """
+    ASGI middleware to restore the original request path from Vercel's proxy headers.
+    When Vercel rewrites `/(.*)` to `/api/index`, the request path inside ASGI is changed to
+    `/api/index`, which breaks FastAPI routing. This middleware extracts the original path
+    from Vercel-specific request headers and overrides `scope["path"]` before routing.
+    """
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            headers = dict(scope.get("headers", []))
+
+            # Check Vercel-specific headers to find the original matched route path
+            original_path = None
+            for header_name in [b"x-matched-path", b"x-vercel-matched-path", b"x-original-url", b"x-forwarded-url"]:
+                if header_name in headers:
+                    path = extract_path_from_header_value(headers[header_name])
+                    if path:
+                        if not path.startswith("/"):
+                            path = "/" + path
+                        original_path = path
+                        break
+
+            if original_path:
+                logger.info("Rewriting ASGI path from %r to %r based on headers", scope.get("path"), original_path)
+                scope["path"] = original_path
+
+        await self.app(scope, receive, send)
+
+
+# Add VercelPathMiddleware to handle routing correctly under Vercel's rewrites
+app.add_middleware(VercelPathMiddleware)
 
 # Allow all origins for CORS
 app.add_middleware(
