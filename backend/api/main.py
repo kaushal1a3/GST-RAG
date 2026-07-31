@@ -369,14 +369,16 @@ def handle_reindex(req: ReindexRequest):
 
 
 # ---------------------------------------------------------------------------
-# Mount React 18 Frontend Static Files
+# Mount React 18 Frontend Static Files (local dev only — skip on Vercel)
 # ---------------------------------------------------------------------------
-_frontend_dist = _PROJECT_ROOT / "frontend" / "dist"
-_frontend_dir = _PROJECT_ROOT / "frontend"
-if _frontend_dist.exists():
-    app.mount("/", StaticFiles(directory=str(_frontend_dist), html=True), name="frontend")
-elif _frontend_dir.exists():
-    app.mount("/", StaticFiles(directory=str(_frontend_dir), html=True), name="frontend")
+_is_vercel = os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV")
+if not _is_vercel:
+    _frontend_dist = _PROJECT_ROOT / "frontend" / "dist"
+    _frontend_dir = _PROJECT_ROOT / "frontend"
+    if _frontend_dist.exists():
+        app.mount("/", StaticFiles(directory=str(_frontend_dist), html=True), name="frontend")
+    elif _frontend_dir.exists():
+        app.mount("/", StaticFiles(directory=str(_frontend_dir), html=True), name="frontend")
 
 
 # ---------------------------------------------------------------------------
