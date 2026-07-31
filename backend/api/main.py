@@ -79,9 +79,8 @@ def extract_path_from_header_value(val: bytes) -> str | None:
 class VercelPathMiddleware:
     """
     ASGI middleware to restore the original request path from Vercel's proxy headers.
-    When Vercel rewrites `/(.*)` to `/api/index`, the request path inside ASGI is changed to
-    `/api/index`, which breaks FastAPI routing. This middleware extracts the original path
-    from Vercel-specific request headers and overrides `scope["path"]` before routing.
+    Ignores builder destination paths like `/api/index.py` (which cause 405 Method Not Allowed)
+    and preserves user-requested API paths like `/query` or `/api/query`.
     """
     def __init__(self, app):
         self.app = app
@@ -90,12 +89,11 @@ class VercelPathMiddleware:
         if scope["type"] == "http":
             headers = dict(scope.get("headers", []))
 
-            # Check Vercel-specific headers to find the original matched route path
             original_path = None
-            for header_name in [b"x-matched-path", b"x-vercel-matched-path", b"x-original-url", b"x-forwarded-url"]:
+            for header_name in [b"x-original-url", b"x-forwarded-url", b"x-vercel-forwarded-for"]:
                 if header_name in headers:
                     path = extract_path_from_header_value(headers[header_name])
-                    if path:
+                    if path and not path.endswith(".py") and not path.endswith("/index"):
                         if not path.startswith("/"):
                             path = "/" + path
                         original_path = path

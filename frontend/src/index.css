@@ -77,9 +77,8 @@ h1, h2, h3, .display-font {
   transform: scale(0.98);
 }
 
-/* Explicit resets for textareas and inputs to prevent any browser default gray overlay */
+/* Explicit resets for textareas and inputs to prevent default browser outlines */
 textarea, input {
-  background-color: transparent !important;
   box-shadow: none !important;
 }
 
