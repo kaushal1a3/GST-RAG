@@ -83,17 +83,19 @@ def _call_llm_raw(system_prompt: str, user_prompt: str, provider: str) -> str:
 
     if provider == "gemini" and api_key:
         try:
-            import google.generativeai as genai  # type: ignore
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel(
-                model_name=config.GEMINI_MODEL,
-                system_instruction=system_prompt,
+            from google import genai  # type: ignore
+            from google.genai import types  # type: ignore
+            client = genai.Client(api_key=api_key)
+            response = client.models.generate_content(
+                model=config.GEMINI_MODEL,
+                contents=user_prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    temperature=0.0,
+                    max_output_tokens=500,
+                ),
             )
-            response = model.generate_content(
-                user_prompt,
-                generation_config={"temperature": 0.0, "max_output_tokens": 500},
-            )
-            return response.text.strip()
+            return response.text.strip() if response.text else ""
         except Exception as exc:
             logger.warning("Gemini raw call failed in query router: %s", exc)
 

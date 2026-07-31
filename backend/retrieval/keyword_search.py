@@ -48,12 +48,16 @@ def _load_bm25_index(bm25_path: str, ids_path: str):
         )
         return None, None
     logger.info("Loading BM25 index from %s …", bm25_path)
-    with open(bm25_path, "rb") as fh:
-        bm25 = pickle.load(fh)
-    with open(ids_path, "r", encoding="utf-8") as fh:
-        ids: list[str] = json.load(fh)
-    logger.info("BM25 index loaded: %d documents.", len(ids))
-    return bm25, ids
+    try:
+        with open(bm25_path, "rb") as fh:
+            bm25 = pickle.load(fh)
+        with open(ids_path, "r", encoding="utf-8") as fh:
+            ids: list[str] = json.load(fh)
+        logger.info("BM25 index loaded: %d documents.", len(ids))
+        return bm25, ids
+    except Exception as exc:
+        logger.warning("BM25 index unavailable (%s) — BM25 search disabled. Vector-only retrieval will be used.", exc)
+        return None, None
 
 
 

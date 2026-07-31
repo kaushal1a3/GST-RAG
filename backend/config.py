@@ -38,14 +38,15 @@ BM25_IDS_FILE = PROCESSED_DIR / "bm25_ids.json"
 CHROMA_DB_DIR = PROCESSED_DIR / "chroma_db"
 
 # ---------------------------------------------------------------------------
-# Embedding model
+# ---------------------------------------------------------------------------
+# Embedding model (Gemini Embedding 2 / text-embedding-004)
 # ---------------------------------------------------------------------------
 EMBEDDING_MODEL_NAME: str = "BAAI/bge-small-en-v1.5"   # kept for local FastEmbed fallback
 EMBEDDING_BATCH_SIZE: int = 128
 EMBEDDING_DIM: int = int(os.getenv("EMBEDDING_DIM", "768"))   # 768 for Google text-embedding-004
 
-# Google embedding model (no local download needed – uses GEMINI_API_KEY)
-GOOGLE_EMBEDDING_MODEL: str = os.getenv("GOOGLE_EMBEDDING_MODEL", "models/text-embedding-004")
+# Google embedding model (Gemini Embedding 2 – no local download needed)
+GOOGLE_EMBEDDING_MODEL: str = os.getenv("GOOGLE_EMBEDDING_MODEL", "gemini-embedding-2")
 
 # ---------------------------------------------------------------------------
 # Vector Store Settings (Qdrant Cloud)
@@ -66,7 +67,7 @@ BM25_TOKENIZE_PATTERN: str = r"[^a-z0-9]"  # split on non-alphanumeric after low
 # LLM / Generation  (Phase 3 – provider-agnostic)
 # ---------------------------------------------------------------------------
 LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "gemini")  # "gemini" | "ollama"
-GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
+GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
 OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3")

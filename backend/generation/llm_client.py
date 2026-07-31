@@ -47,19 +47,21 @@ def _call_gemini(system_prompt: str, user_prompt: str) -> str:
     model_name = config.GEMINI_MODEL
 
     try:
-        import google.generativeai as genai  # type: ignore
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(
-            model_name=model_name,
-            system_instruction=system_prompt,
+        from google import genai  # type: ignore
+        from google.genai import types  # type: ignore
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model=model_name,
+            contents=user_prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                temperature=0.1,
+                max_output_tokens=1500,
+            ),
         )
-        response = model.generate_content(
-            user_prompt,
-            generation_config={"temperature": 0.1, "max_output_tokens": 1500},
-        )
-        return response.text.strip()
-    except ImportError:
-        # Fallback to direct HTTP request using requests if google-generativeai library is not installed
+        return response.text.strip() if response.text else ""
+    except Exception as exc:
+        logger.warning("google-genai SDK call failed (%s); attempting REST fallback...", exc)
         import requests
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
         headers = {"Content-Type": "application/json"}
