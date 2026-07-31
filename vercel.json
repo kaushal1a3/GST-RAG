@@ -1,26 +1,27 @@
 {
+  "version": 2,
   "builds": [
     {
       "src": "api/index.py",
       "use": "@vercel/python"
     }
   ],
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/index.py"
+      "src": "/api/(.*)",
+      "dest": "api/index.py"
     },
     {
-      "source": "/health",
-      "destination": "/api/index.py"
+      "src": "/health",
+      "dest": "api/index.py"
     },
     {
-      "source": "/query",
-      "destination": "/api/index.py"
+      "src": "/query",
+      "dest": "api/index.py"
     },
     {
-      "source": "/reindex",
-      "destination": "/api/index.py"
+      "src": "/reindex",
+      "dest": "api/index.py"
     }
   ]
 }
