@@ -21,7 +21,18 @@ logger = logging.getLogger(__name__)
 
 @lru_cache(maxsize=1)
 def _load_parent_data(parent_path: str, map_path: str):
-    """Load and cache parent chunks and the leaf→parent map from disk."""
+    """Load and cache parent chunks and the leaf→parent map from disk.
+    Returns (empty_dict, empty_dict) if files do not exist (e.g. on Vercel serverless);
+    chunks will fall back to using their own document text as expanded_context.
+    """
+    if not Path(parent_path).exists() or not Path(map_path).exists():
+        logger.warning(
+            "Parent chunk files not found (%s / %s) — parent expansion disabled. "
+            "Each chunk's own text will be used as context.",
+            parent_path, map_path,
+        )
+        return {}, {}
+
     with open(parent_path, "r", encoding="utf-8") as fh:
         parent_chunks: list[dict] = json.load(fh)
     with open(map_path, "r", encoding="utf-8") as fh:
@@ -35,6 +46,7 @@ def _load_parent_data(parent_path: str, map_path: str):
         len(parent_lookup), len(leaf_to_parent),
     )
     return parent_lookup, leaf_to_parent
+
 
 
 def expand_with_parent(

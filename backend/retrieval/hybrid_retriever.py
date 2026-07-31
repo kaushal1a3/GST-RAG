@@ -19,11 +19,23 @@ logger = logging.getLogger(__name__)
 
 @lru_cache(maxsize=1)
 def _load_leaf_metadata(leaf_chunks_path: str) -> dict[str, dict[str, Any]]:
-    """Load leaf_chunks.json and index metadata by chunk id."""
+    """Load leaf_chunks.json and index metadata by chunk id.
+    Returns an empty dict if the file does not exist (e.g. on Vercel serverless);
+    in that case metadata from vector-hit payloads is used directly.
+    """
+    from pathlib import Path
+    if not Path(leaf_chunks_path).exists():
+        logger.warning(
+            "leaf_chunks.json not found at %s — metadata will be sourced "
+            "from vector hit payloads only.",
+            leaf_chunks_path,
+        )
+        return {}
     with open(leaf_chunks_path, "r", encoding="utf-8") as fh:
         chunks: list[dict[str, Any]] = json.load(fh)
     logger.info("Loaded metadata index for %d leaf chunks.", len(chunks))
     return {c["id"]: c for c in chunks}
+
 
 
 def _rrf_score(rank: int, k: int) -> float:
@@ -72,20 +84,35 @@ def fuse_results(
             + bm25_weight * _rrf_score(b_rank, rrf_k)
         )
 
-        # Get authoritative metadata from leaf_chunks.json
+        # Get authoritative metadata: prefer leaf_chunks.json, fall back to hit payload
         full_leaf = leaf_meta_map.get(chunk_id, {})
+
+        # When leaf_chunks.json is unavailable (Vercel), use metadata from vector hit payload
+        hit_meta: dict = {}
+        for hit in (*vector_hits, *bm25_hits):
+            if hit["id"] == chunk_id:
+                hit_meta = hit.get("metadata", {})
+                break
+
+        def _get(key: str, default: str = "") -> str:
+            return full_leaf.get(key) or hit_meta.get(key, default)
+
         meta = {
-            "doc_type": full_leaf.get("doc_type", ""),
-            "law_title": full_leaf.get("law_title", ""),
-            "chapter": full_leaf.get("chapter", ""),
-            "unit_number": full_leaf.get("unit_number", ""),
-            "raw_unit": full_leaf.get("raw_unit", ""),
-            "unit_title": full_leaf.get("unit_title"),
-            "sub_unit_marker": full_leaf.get("sub_unit_marker", ""),
-            "date": full_leaf.get("date", ""),
-            "parent_id": full_leaf.get("parent_id", ""),
+            "doc_type":        _get("doc_type"),
+            "law_title":       _get("law_title"),
+            "chapter":         _get("chapter"),
+            "unit_number":     _get("unit_number"),
+            "raw_unit":        _get("raw_unit"),
+            "unit_title":      full_leaf.get("unit_title") or hit_meta.get("unit_title"),
+            "sub_unit_marker": _get("sub_unit_marker"),
+            "date":            _get("date"),
+            "parent_id":       _get("parent_id"),
         }
-        document_text = full_leaf.get("text") or vector_doc_map.get(chunk_id, "")
+        document_text = (
+            full_leaf.get("text")
+            or hit_meta.get("text")
+            or vector_doc_map.get(chunk_id, "")
+        )
 
         unit_number = meta["unit_number"]
         law_title = meta["law_title"].lower()

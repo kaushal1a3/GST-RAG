@@ -37,7 +37,16 @@ def _tokenize(text: str) -> list[str]:
 
 @lru_cache(maxsize=1)
 def _load_bm25_index(bm25_path: str, ids_path: str):
-    """Load and cache the BM25 index and ID list from disk."""
+    """Load and cache the BM25 index and ID list from disk.
+    Returns (None, None) if the index files do not exist (e.g. on Vercel serverless).
+    """
+    if not Path(bm25_path).exists():
+        logger.warning(
+            "BM25 index not found at %s — BM25 search disabled. "
+            "Vector-only retrieval will be used.",
+            bm25_path,
+        )
+        return None, None
     logger.info("Loading BM25 index from %s …", bm25_path)
     with open(bm25_path, "rb") as fh:
         bm25 = pickle.load(fh)
@@ -45,6 +54,7 @@ def _load_bm25_index(bm25_path: str, ids_path: str):
         ids: list[str] = json.load(fh)
     logger.info("BM25 index loaded: %d documents.", len(ids))
     return bm25, ids
+
 
 
 # ---------------------------------------------------------------------------
@@ -73,6 +83,10 @@ def keyword_search(
         { id: str, score: float, rank: int, source: "bm25" }
     """
     bm25, ids = _load_bm25_index(bm25_path, ids_path)
+
+    # BM25 index unavailable (e.g. running on Vercel without local data files)
+    if bm25 is None or ids is None:
+        return []
 
     tokens = _tokenize(query)
     if not tokens:
