@@ -79,13 +79,8 @@ export default function LandingPage({
       {/* Top Navigation & Config Panel */}
       <header className="w-full max-w-7xl flex justify-between items-center pt-8 px-8 relative z-50">
         {/* Logo / Brand Tag */}
-        <div className="flex items-center gap-3 cursor-pointer" onClick={() => onStartChat("")}>
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-600 to-orange-500 flex items-center justify-center text-white shadow-md shadow-orange-500/20">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-            </svg>
-          </div>
-          <span className="display-font font-bold text-lg tracking-tight text-stone-900">Ask GST</span>
+        <div className="flex items-center gap-3">
+          <span className="display-font font-bold text-xl tracking-tight text-stone-900">Ask GST</span>
         </div>
 
         <div className="flex items-center gap-3">
@@ -130,7 +125,7 @@ export default function LandingPage({
           {/* Github Button */}
           <div className="relative group/tooltip">
             <a
-              href="https://github.com"
+              href="https://github.com/kaushal1a3/GST-RAG"
               target="_blank"
               rel="noreferrer"
               title="View Source on GitHub"
@@ -211,23 +206,6 @@ export default function LandingPage({
 
             <div className="w-full flex justify-end items-center">
               <div className="flex items-center gap-3">
-                {/* Attach Button */}
-                <div className="relative group/tooltip">
-                  <button
-                    type="button"
-                    onClick={() => alert("Attachment feature available.")}
-                    title="Attach Section / PDF"
-                    className="p-3 rounded-xl bg-white border border-stone-200 hover:border-orange-300 text-stone-600 hover:text-stone-900 flex items-center justify-center transition-all cursor-pointer shadow-sm"
-                  >
-                    <svg className="w-4 h-4 text-stone-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
-                    </svg>
-                  </button>
-                  <div className="absolute bottom-full right-0 mb-2 hidden group-hover/tooltip:block bg-stone-900 text-white text-xs px-2.5 py-1 rounded-lg shadow-lg whitespace-nowrap z-50 animate-fade-in font-medium">
-                    Attach File (.pdf, .csv, .png)
-                  </div>
-                </div>
-
                 {/* Send Button */}
                 <div className="relative group/tooltip">
                   <button

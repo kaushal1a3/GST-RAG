@@ -176,6 +176,14 @@ function ChatContainer({
     }
   };
 
+  const handleRenameThread = (threadIdToRename, newTitle) => {
+    if (!newTitle || !newTitle.trim()) return;
+    const cleanTitle = newTitle.trim();
+    setThreads((prevThreads) =>
+      prevThreads.map((t) => (t.id === threadIdToRename ? { ...t, title: cleanTitle } : t))
+    );
+  };
+
   const handleClearHistory = () => {
     setThreads([]);
     localStorage.removeItem("gst_rag_chat_threads");
@@ -199,6 +207,7 @@ function ChatContainer({
       activeThreadId={activeId}
       onSelectThread={(id) => navigate(`/chat/${id}`)}
       onDeleteThread={handleDeleteThread}
+      onRenameThread={handleRenameThread}
       onGoHome={() => navigate('/')}
     />
   );

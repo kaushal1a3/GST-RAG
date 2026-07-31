@@ -20,6 +20,7 @@ export default function ChatSession({
   activeThreadId,
   onSelectThread,
   onDeleteThread,
+  onRenameThread = () => {},
   onGoHome
 }) {
   const [inputQuery, setInputQuery] = useState("");
@@ -28,6 +29,24 @@ export default function ChatSession({
   const [mobileLeftOpen, setMobileLeftOpen] = useState(false);
   const [mobileRightOpen, setMobileRightOpen] = useState(false);
   const [expandedSourceIndex, setExpandedSourceIndex] = useState(null);
+
+  // Thread title inline editing state
+  const [editingThreadId, setEditingThreadId] = useState(null);
+  const [editingTitle, setEditingTitle] = useState("");
+
+  const startEditingThread = (thread, e) => {
+    e?.stopPropagation();
+    setEditingThreadId(thread.id);
+    setEditingTitle(thread.title);
+  };
+
+  const handleSaveRename = (threadId, e) => {
+    e?.stopPropagation();
+    if (editingTitle.trim()) {
+      onRenameThread(threadId, editingTitle.trim());
+    }
+    setEditingThreadId(null);
+  };
 
   const messagesEndRef = useRef(null);
 
@@ -111,20 +130,68 @@ export default function ChatSession({
                         onClick={() => { onSelectThread(thread.id); setMobileLeftOpen(false); }}
                         className={`w-full p-[10px_15px] rounded-xl border border-orange-500/10 flex items-center justify-between gap-2.5 cursor-pointer group ${thread.id === activeThreadId ? 'bg-orange-500/10 font-semibold' : ''}`}
                       >
-                        <span className="text-xs font-medium text-[#44403C] line-clamp-2 leading-tight flex-1">{thread.title}</span>
-                        
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDeleteThread(thread.id);
-                          }}
-                          title="Delete thread"
-                          className="p-1 hover:bg-orange-200/50 rounded-lg text-stone-500 hover:text-orange-700 transition-all shrink-0"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                          </svg>
-                        </button>
+                        {editingThreadId === thread.id ? (
+                          <div className="flex items-center gap-1.5 flex-1" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="text"
+                              autoFocus
+                              value={editingTitle}
+                              onChange={(e) => setEditingTitle(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveRename(thread.id, e);
+                                if (e.key === 'Escape') setEditingThreadId(null);
+                              }}
+                              className="w-full text-xs px-2 py-1 bg-white border border-orange-500/40 rounded-lg outline-none text-[#292524] font-medium"
+                            />
+                            <button 
+                              onClick={(e) => handleSaveRename(thread.id, e)}
+                              title="Save title"
+                              className="p-1 text-emerald-600 hover:bg-emerald-50 rounded-md shrink-0 cursor-pointer"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                              </svg>
+                            </button>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setEditingThreadId(null); }}
+                              title="Cancel edit"
+                              className="p-1 text-stone-400 hover:bg-stone-100 rounded-md shrink-0 cursor-pointer"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                              </svg>
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <span className="text-xs font-medium text-[#44403C] line-clamp-2 leading-tight flex-1">{thread.title}</span>
+                            
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button 
+                                onClick={(e) => startEditingThread(thread, e)}
+                                title="Rename thread"
+                                className="p-1 hover:bg-orange-200/50 rounded-lg text-stone-500 hover:text-orange-700 transition-all shrink-0 cursor-pointer"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                                </svg>
+                              </button>
+
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeleteThread(thread.id);
+                                }}
+                                title="Delete thread"
+                                className="p-1 hover:bg-orange-200/50 rounded-lg text-stone-500 hover:text-orange-700 transition-all shrink-0 cursor-pointer"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                </svg>
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </div>
                     ))
                   )}
@@ -209,7 +276,7 @@ export default function ChatSession({
             {!collapsedLeft && (
               <button 
                 onClick={onGoHome} 
-                className="text-2xl font-extrabold tracking-tight text-[#171717] hover:opacity-90 transition-all duration-300 ease-in-out text-left whitespace-nowrap overflow-hidden"
+                className="text-2xl font-extrabold tracking-tight text-[#171717] hover:opacity-90 transition-all duration-300 ease-in-out text-left whitespace-nowrap overflow-hidden cursor-pointer"
               >
                 Ask <span className="text-orange-600">GST</span>
               </button>
@@ -251,21 +318,70 @@ export default function ChatSession({
                         onClick={() => onSelectThread(thread.id)}
                         className={`w-full p-2.5 rounded-xl border flex items-center justify-between gap-2 cursor-pointer transition-all group ${thread.id === activeThreadId ? 'bg-orange-500/10 border-orange-500/30 font-semibold' : 'bg-white border-stone-200/70 hover:border-orange-500/20 hover:bg-orange-50/30'}`}
                       >
-                        <span className="text-xs font-medium text-[#44403C] line-clamp-2 leading-tight flex-1">{thread.title}</span>
-                        
-                        {/* Delete thread icon button on hover */}
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDeleteThread(thread.id);
-                          }}
-                          title="Delete thread"
-                          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-orange-200/60 rounded-md text-stone-400 hover:text-orange-700 transition-all shrink-0 cursor-pointer"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                          </svg>
-                        </button>
+                        {editingThreadId === thread.id ? (
+                          <div className="flex items-center gap-1.5 flex-1" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="text"
+                              autoFocus
+                              value={editingTitle}
+                              onChange={(e) => setEditingTitle(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveRename(thread.id, e);
+                                if (e.key === 'Escape') setEditingThreadId(null);
+                              }}
+                              className="w-full text-xs px-2 py-1 bg-white border border-orange-500/40 rounded-lg outline-none text-[#292524] font-medium"
+                            />
+                            <button 
+                              onClick={(e) => handleSaveRename(thread.id, e)}
+                              title="Save title"
+                              className="p-1 text-emerald-600 hover:bg-emerald-50 rounded-md shrink-0 cursor-pointer"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                              </svg>
+                            </button>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setEditingThreadId(null); }}
+                              title="Cancel edit"
+                              className="p-1 text-stone-400 hover:bg-stone-100 rounded-md shrink-0 cursor-pointer"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                              </svg>
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <span className="text-xs font-medium text-[#44403C] line-clamp-2 leading-tight flex-1">{thread.title}</span>
+                            
+                            <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {/* Rename thread icon button */}
+                              <button 
+                                onClick={(e) => startEditingThread(thread, e)}
+                                title="Rename thread"
+                                className="p-1 hover:bg-orange-200/60 rounded-md text-stone-400 hover:text-orange-700 transition-all shrink-0 cursor-pointer"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                                </svg>
+                              </button>
+
+                              {/* Delete thread icon button */}
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeleteThread(thread.id);
+                                }}
+                                title="Delete thread"
+                                className="p-1 hover:bg-orange-200/60 rounded-md text-stone-400 hover:text-orange-700 transition-all shrink-0 cursor-pointer"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                </svg>
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </div>
                     ))
                   )}
@@ -424,7 +540,7 @@ export default function ChatSession({
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input Bar Area - White Background */}
+          {/* Input Bar Area - Filled Warm Background */}
           <div className="sticky bottom-0 w-full px-6 py-4 flex items-center justify-center bg-transparent">
             <form onSubmit={handleSubmit} className="relative w-full max-w-[675px]">
               <input 
@@ -432,26 +548,10 @@ export default function ChatSession({
                 value={inputQuery}
                 onChange={(e) => setInputQuery(e.target.value)}
                 placeholder="Ask follow-up query on GST Acts, Rules..." 
-                className="w-full h-[84px] bg-white border border-orange-500/25 rounded-2xl px-6 pr-28 text-sm text-[#292524] placeholder-[#A6A09B] focus:outline-none focus:border-orange-500 shadow-md transition-all font-medium"
+                className="w-full h-[84px] bg-[#FFFBF5] border border-orange-500/25 rounded-2xl px-6 pr-16 text-sm text-[#292524] placeholder-[#A6A09B] focus:outline-none focus:border-orange-500 shadow-md transition-all font-medium"
               />
               
               <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-3">
-                {/* Attach File Button */}
-                <div className="relative group">
-                  <button 
-                    type="button"
-                    onClick={() => alert("File attached for legal reference.")}
-                    className="w-10 h-10 bg-transparent border border-orange-500/15 rounded-xl flex items-center justify-center hover:bg-orange-50/50 transition-colors cursor-pointer"
-                  >
-                    <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
-                    </svg>
-                  </button>
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-1.5 bg-[#1C1917] text-white text-[11px] font-medium rounded-lg shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap z-30">
-                    Attach File (.pdf, .csv, .png)
-                  </div>
-                </div>
-
                 {/* Send Query Button */}
                 <div className="relative group">
                   <button 
@@ -523,7 +623,7 @@ export default function ChatSession({
           {/* GitHub Button */}
           <div className="relative group">
             <a 
-              href="https://github.com" 
+              href="https://github.com/kaushal1a3/GST-RAG" 
               target="_blank" 
               rel="noreferrer"
               className="w-11 h-11 bg-white border border-orange-500/15 rounded-xl flex items-center justify-center shadow-sm hover:bg-orange-50 transition-all"
