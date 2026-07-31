@@ -59,25 +59,41 @@ def _call_gemini(system_prompt: str, user_prompt: str) -> str:
                 max_output_tokens=1500,
             ),
         )
-        return response.text.strip() if response.text else ""
+        text = response.text.strip() if (hasattr(response, "text") and response.text) else ""
+        if text:
+            return text
+        if hasattr(response, "candidates") and response.candidates:
+            cand = response.candidates[0]
+            if hasattr(cand, "content") and cand.content and hasattr(cand.content, "parts") and cand.content.parts:
+                part_text = "".join(p.text for p in cand.content.parts if hasattr(p, "text") and p.text).strip()
+                if part_text:
+                    return part_text
     except Exception as exc:
         logger.warning("google-genai SDK call failed (%s); attempting REST fallback...", exc)
-        import requests
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
-        headers = {"Content-Type": "application/json"}
-        payload = {
-            "contents": [
-                {
-                    "role": "user",
-                    "parts": [{"text": f"{system_prompt}\n\n{user_prompt}"}],
-                }
-            ],
-            "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1500},
-        }
+
+    import requests
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+    headers = {"Content-Type": "application/json"}
+    payload = {
+        "contents": [
+            {
+                "role": "user",
+                "parts": [{"text": f"{system_prompt}\n\n{user_prompt}"}],
+            }
+        ],
+        "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1500},
+    }
+    try:
         resp = requests.post(url, headers=headers, json=payload, timeout=30)
         resp.raise_for_status()
         data = resp.json()
-        return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+        rest_text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+        if rest_text:
+            return rest_text
+    except Exception as exc_rest:
+        logger.warning("Gemini REST call failed (%s).", exc_rest)
+
+    return ""
 
 
 # ---------------------------------------------------------------------------
@@ -221,17 +237,23 @@ def generate_answer(
         return "The provided legal context does not contain information to answer this question."
 
     try:
+        ans = ""
         if selected_provider == "gemini":
-            return _call_gemini(SYSTEM_PROMPT, user_prompt)
+            ans = _call_gemini(SYSTEM_PROMPT, user_prompt)
         elif selected_provider == "claude":
-            return _call_claude(SYSTEM_PROMPT, user_prompt)
+            ans = _call_claude(SYSTEM_PROMPT, user_prompt)
         elif selected_provider == "ollama":
-            return _call_ollama(SYSTEM_PROMPT, user_prompt)
+            ans = _call_ollama(SYSTEM_PROMPT, user_prompt)
         elif selected_provider == "mock":
-            return _call_mock(query, context_chunks)
+            ans = _call_mock(query, context_chunks)
         else:
             logger.warning("Unknown provider '%s'; attempting Gemini", selected_provider)
-            return _call_gemini(SYSTEM_PROMPT, user_prompt)
+            ans = _call_gemini(SYSTEM_PROMPT, user_prompt)
+
+        if ans and ans.strip():
+            return ans
+        logger.warning("LLM provider '%s' returned empty output. Falling back to mock generator.", selected_provider)
+        return _call_mock(query, context_chunks)
     except Exception as exc:
         logger.warning("LLM provider '%s' failed (%s). Falling back to mock generator.", selected_provider, exc)
         return _call_mock(query, context_chunks)
