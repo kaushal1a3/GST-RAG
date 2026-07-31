@@ -63,7 +63,8 @@ BM25_TOKENIZE_PATTERN: str = r"[^a-z0-9]"  # split on non-alphanumeric after low
 # LLM / Generation  (Phase 3 – provider-agnostic)
 # ---------------------------------------------------------------------------
 LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "gemini")  # "gemini" | "ollama"
-GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
+GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+
 GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
 OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3")
