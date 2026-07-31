@@ -78,30 +78,38 @@ def extract_path_from_header_value(val: bytes) -> str | None:
 
 class VercelPathMiddleware:
     """
-    ASGI middleware to restore the original request path from Vercel's proxy headers.
-    Ignores builder destination paths like `/api/index.py` (which cause 405 Method Not Allowed)
-    and preserves user-requested API paths like `/query` or `/api/query`.
+    ASGI middleware to restore original request paths under Vercel proxying.
+    Guarantees POST requests routed to /api/index.py or /api/index map to /query.
     """
     def __init__(self, app):
         self.app = app
 
     async def __call__(self, scope, receive, send):
         if scope["type"] == "http":
+            current_path = scope.get("path", "")
+            method = scope.get("method", "GET")
             headers = dict(scope.get("headers", []))
 
             original_path = None
-            for header_name in [b"x-original-url", b"x-forwarded-url", b"x-vercel-forwarded-for"]:
+            for header_name in [b"x-forwarded-url", b"x-original-url", b"x-matched-path", b"x-vercel-matched-path"]:
                 if header_name in headers:
                     path = extract_path_from_header_value(headers[header_name])
-                    if path and not path.endswith(".py") and not path.endswith("/index"):
+                    if path and not path.endswith(".py") and not path.endswith("/index") and path not in ["/api", "/api/"]:
                         if not path.startswith("/"):
                             path = "/" + path
                         original_path = path
                         break
 
             if original_path:
-                logger.info("Rewriting ASGI path from %r to %r based on headers", scope.get("path"), original_path)
+                logger.info("Rewriting ASGI path from %r to %r based on headers", current_path, original_path)
                 scope["path"] = original_path
+            elif current_path in ["/api/index", "/api/index.py", "/api/index/", "/api", "/api/"]:
+                if method == "POST":
+                    logger.info("Auto-mapping POST %r to /query", current_path)
+                    scope["path"] = "/query"
+                elif method == "GET":
+                    logger.info("Auto-mapping GET %r to /health", current_path)
+                    scope["path"] = "/health"
 
         await self.app(scope, receive, send)
 
@@ -266,6 +274,9 @@ def health_check():
 @app.post("/query", response_model=QueryResponse, tags=["RAG Query"])
 @app.post("/api/query", response_model=QueryResponse, tags=["RAG Query"])
 @app.post("/api/index/query", response_model=QueryResponse, tags=["RAG Query"])
+@app.post("/api/index", response_model=QueryResponse, tags=["RAG Query"])
+@app.post("/api/index.py", response_model=QueryResponse, tags=["RAG Query"])
+@app.post("/api", response_model=QueryResponse, tags=["RAG Query"])
 def handle_query(req: QueryRequest):
     """
     Process a natural language GST query through the end-to-end RAG pipeline:
