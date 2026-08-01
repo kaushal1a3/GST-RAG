@@ -222,7 +222,6 @@ QDRANT_API_KEY=your_qdrant_api_key_here
 | `QDRANT_URL` | *(required for cloud)* | Your Qdrant Cloud instance endpoint. |
 | `QDRANT_API_KEY` | *(required for cloud)* | Your Qdrant Cloud security token. |
 
-> ⚠️ **Never commit real API keys.** Keep your `.env` file out of version control (add it to `.gitignore`).
 
 ---
 
@@ -237,7 +236,6 @@ Run the FastAPI backend and the React development server concurrently.
 python -m uvicorn api.main:app --reload --port 8000
 ```
 
-This serves the API at `http://127.0.0.1:8000`.
 
 **Step 2 — Start the React + Vite frontend**
 
